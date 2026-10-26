@@ -17,7 +17,6 @@
     
     .container { width: 98%; max-width: 100%; margin: 0 auto; background: #ffffff; padding: 20px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
     
-    /* CSS cho thanh cảnh báo & Trạng thái Sync */
     .alert-banner { display: flex; justify-content: space-around; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 8px; margin-top: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     .alert-item { font-size: 14px; font-weight: 600; color: #1e40af; display: flex; align-items: center; gap: 6px; }
     .alert-item span { font-weight: 700; padding: 2px 8px; border-radius: 6px; }
@@ -265,7 +264,7 @@
         <thead>
           <tr>
             <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-inventory" onclick="toggleSelectAll('inventory', this)"></th>
-            <th>STT / 序号</th>
+            <th>序号<br>STT</th>
             <th>
               <div class="th-content"><span>Mã Mua Bán / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'code')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-inventory-code"></div>
@@ -290,13 +289,13 @@
               <div class="th-content"><span>Thiết Bị / 适用设备</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'device')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-inventory-device"></div>
             </th>
-            <th>Số Lượng / 库存</th>
-            <th>Tồn Tối Thiểu / 安全库存</th>
+            <th>库存<br>Số Lượng</th>
+            <th>安全库存<br>Tồn Tối Thiểu</th>
             <th>
               <div class="th-content"><span>Vị Trí Kho / 库位</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'location')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-inventory-location"></div>
             </th>
-            <th>Thao Tác / 操作</th>
+            <th>操作<br>Thao Tác</th>
           </tr>
         </thead>
         <tbody id="inventoryBody"></tbody>
@@ -334,50 +333,50 @@
               <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-china" onclick="toggleSelectAll('china', this)"></th>
               <th>序号<br>STT</th>
               <th>
-                <div class="th-content"><span>Tháng Mua</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'month')">▼</button></div>
+                <div class="th-content"><span>Tháng Mua / 采购月份</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'month')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-month"></div>
               </th>
               <th>
-                <div class="th-content"><span>Bộ Phận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'dept')">▼</button></div>
+                <div class="th-content"><span>Bộ Phận / 部门</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'dept')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-dept"></div>
               </th>
               <th>
-                <div class="th-content"><span>Module</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'module')">▼</button></div>
+                <div class="th-content"><span>Module / 模块</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'module')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-module"></div>
               </th>
               <th>
-                <div class="th-content"><span>Mã Chi Phí</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'costCenter')">▼</button></div>
+                <div class="th-content"><span>Mã Chi Phí / 成本中心</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'costCenter')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-costCenter"></div>
               </th>
               <th>
-                <div class="th-content"><span>Mã Vật Liệu</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'code')">▼</button></div>
+                <div class="th-content"><span>Mã Vật Liệu / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'code')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-code"></div>
               </th>
               <th>
-                <div class="th-content"><span>Tổ Mua Hàng</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'group')">▼</button></div>
+                <div class="th-content"><span>Tổ Mua Hàng / 采购组</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'group')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-group"></div>
               </th>
               <th>
-                <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'name')">▼</button></div>
+                <div class="th-content"><span>Tên Phụ Kiện / 备件品名</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'name')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-name"></div>
               </th>
               <th>
-                <div class="th-content"><span>Mô Tả TQ</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'descCn')">▼</button></div>
+                <div class="th-content"><span>Mô Tả TQ / 物料描述</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'descCn')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-descCn"></div>
               </th>
               <th>
-                <div class="th-content"><span>Đơn Vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'unit')">▼</button></div>
+                <div class="th-content"><span>Đơn Vị / 单位</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'unit')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-unit"></div>
               </th>
-              <th>Số Lượng<br>数量</th>
-              <th>Đơn Giá<br>预算单价</th>
-              <th>Tổng Giá Trước Thuế<br>预算总价</th>
+              <th>数量<br>Số Lượng</th>
+              <th>预算单价<br>Đơn Giá</th>
+              <th>预算总价<br>Tổng Giá Trước Thuế</th>
               <th>
-                <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'note')">▼</button></div>
+                <div class="th-content"><span>Ghi Chú / 备注</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'note')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-china-note"></div>
               </th>
-              <th>Trạng Thái<br>签收</th>
-              <th>Thao Tác<br>操作</th>
+              <th>签收<br>Trạng Thái</th>
+              <th>操作<br>Thao Tác</th>
             </tr>
           </thead>
           <tbody id="chinaPurchaseBody"></tbody>
@@ -408,42 +407,42 @@
               <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-vietnam" onclick="toggleSelectAll('vietnam', this)"></th>
               <th>序号<br>STT</th>
               <th>
-                <div class="th-content"><span>Tháng Mua</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'month')">▼</button></div>
+                <div class="th-content"><span>Tháng Mua / 采购月份</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'month')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-month"></div>
               </th>
               <th>
-                <div class="th-content"><span>Phân loại</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'category')">▼</button></div>
+                <div class="th-content"><span>Phân loại / 类别</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'category')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-category"></div>
               </th>
               <th>
-                <div class="th-content"><span>Bộ phận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'dept')">▼</button></div>
+                <div class="th-content"><span>Bộ phận / 需求部门</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'dept')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-dept"></div>
               </th>
               <th>
-                <div class="th-content"><span>Mã vật liệu</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'code')">▼</button></div>
+                <div class="th-content"><span>Mã vật liệu / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'code')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-code"></div>
               </th>
               <th>
-                <div class="th-content"><span>Mô tả Trung - Việt</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'descVnCn')">▼</button></div>
+                <div class="th-content"><span>Mô tả Trung - Việt / 物料描述</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'descVnCn')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-descVnCn"></div>
               </th>
-              <th>Số lượng<br>数量</th>
+              <th>数量<br>Số lượng</th>
               <th>
-                <div class="th-content"><span>Đơn vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'unit')">▼</button></div>
+                <div class="th-content"><span>Đơn vị / 单位</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'unit')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-unit"></div>
               </th>
-              <th>Đơn giá dự toán<br>预算单价</th>
-              <th>Tổng giá dự toán<br>预算总价</th>
+              <th>预算单价<br>Đơn giá dự toán</th>
+              <th>预算总价<br>Tổng giá dự toán</th>
               <th>
-                <div class="th-content"><span>Khía cạnh sử dụng</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'usage')">▼</button></div>
+                <div class="th-content"><span>Khía cạnh sử dụng / 使用场景</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'usage')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-usage"></div>
               </th>
               <th>
-                <div class="th-content"><span>Người quản lý</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'keeper')">▼</button></div>
+                <div class="th-content"><span>Người quản lý / 保管人</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'keeper')">▼</button></div>
                 <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-keeper"></div>
               </th>
-              <th>Trạng Thái<br>签收</th>
-              <th>Thao Tác<br>操作</th>
+              <th>签收<br>Trạng Thái</th>
+              <th>操作<br>Thao Tác</th>
             </tr>
           </thead>
           <tbody id="vietnamPurchaseBody"></tbody>
@@ -473,29 +472,29 @@
         <thead>
           <tr>
             <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-ng" onclick="toggleSelectAll('ng', this)"></th>
-            <th>STT / 序号</th>
+            <th>序号<br>STT</th>
             <th>
-              <div class="th-content"><span>Thời Gian</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'time')">▼</button></div>
+              <div class="th-content"><span>Thời Gian / 时间</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'time')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-ng-time"></div>
             </th>
             <th>
-              <div class="th-content"><span>Mã Mua Bán</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'code')">▼</button></div>
+              <div class="th-content"><span>Mã Mua Bán / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'code')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-ng-code"></div>
             </th>
             <th>
-              <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'name')">▼</button></div>
+              <div class="th-content"><span>Tên Phụ Kiện / 备件品名</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'name')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-ng-name"></div>
             </th>
-            <th>Số Lượng NG / 报废数量</th>
+            <th>报废数量<br>Số Lượng NG</th>
             <th>
-              <div class="th-content"><span>Lý Do NG</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'reason')">▼</button></div>
+              <div class="th-content"><span>Lý Do NG / 报废原因</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'reason')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-ng-reason"></div>
             </th>
             <th>
-              <div class="th-content"><span>Người Báo Phế</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'user')">▼</button></div>
+              <div class="th-content"><span>Người Báo Phế / 记录人</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'user')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-ng-user"></div>
             </th>
-            <th>Thao Tác / 操作</th>
+            <th>操作<br>Thao Tác</th>
           </tr>
         </thead>
         <tbody id="ngBody"></tbody>
@@ -524,30 +523,30 @@
         <thead>
           <tr>
             <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-logs" onclick="toggleSelectAll('logs', this)"></th>
-            <th>STT / 序号</th>
+            <th>序号<br>STT</th>
             <th>
-              <div class="th-content"><span>Thời Gian</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'time')">▼</button></div>
+              <div class="th-content"><span>Thời Gian / 时间</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'time')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-logs-time"></div>
             </th>
             <th>
-              <div class="th-content"><span>Loại Thao Tác</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'type')">▼</button></div>
+              <div class="th-content"><span>Loại Thao Tác / 操作类型</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'type')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-logs-type"></div>
             </th>
             <th>
-              <div class="th-content"><span>Mã Mua Bán</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'code')">▼</button></div>
+              <div class="th-content"><span>Mã Mua Bán / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'code')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-logs-code"></div>
             </th>
             <th>
-              <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'name')">▼</button></div>
+              <div class="th-content"><span>Tên Phụ Kiện / 备件品名</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'name')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-logs-name"></div>
             </th>
-            <th>Thay Đổi / 变动数量</th>
-            <th>Tồn Sau Cùng / 结存数量</th>
+            <th>变动数量<br>Thay Đổi</th>
+            <th>结存数量<br>Tồn Sau Cùng</th>
             <th>
-              <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'note')">▼</button></div>
+              <div class="th-content"><span>Ghi Chú / 备注</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'note')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-logs-note"></div>
             </th>
-            <th>Thao Tác / 操作</th>
+            <th>操作<br>Thao Tác</th>
           </tr>
         </thead>
         <tbody id="logsBody"></tbody>
@@ -576,37 +575,37 @@
         <thead>
           <tr>
             <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-adminReceive" onclick="toggleSelectAll('adminReceive', this)"></th>
-            <th>STT / 序号</th>
+            <th>序号<br>STT</th>
             <th>
-              <div class="th-content"><span>Thời Gian Lĩnh</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'time')">▼</button></div>
+              <div class="th-content"><span>Thời Gian Lĩnh / 领用时间</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'time')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-time"></div>
             </th>
             <th>
-              <div class="th-content"><span>Tên Vật Tư</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'itemName')">▼</button></div>
+              <div class="th-content"><span>Tên Vật Tư / 物品名称</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'itemName')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-itemName"></div>
             </th>
-            <th>Số Lượng Lĩnh<br>领用数量</th>
+            <th>领用数量<br>Số Lượng Lĩnh</th>
             <th>
-              <div class="th-content"><span>Đơn Vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'unit')">▼</button></div>
+              <div class="th-content"><span>Đơn Vị / 单位</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'unit')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-unit"></div>
             </th>
             <th>
-              <div class="th-content"><span>Bộ Phận Nhận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'dept')">▼</button></div>
+              <div class="th-content"><span>Bộ Phận Nhận / 领用部门</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'dept')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-dept"></div>
             </th>
             <th>
-              <div class="th-content"><span>Người Nhận Đồ</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'receiver')">▼</button></div>
+              <div class="th-content"><span>Người Nhận Đồ / 领用人</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'receiver')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-receiver"></div>
             </th>
             <th>
-              <div class="th-content"><span>Người Giao</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'giver')">▼</button></div>
+              <div class="th-content"><span>Người Giao / 发货人/文书</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'giver')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-giver"></div>
             </th>
             <th>
-              <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'note')">▼</button></div>
+              <div class="th-content"><span>Ghi Chú / 备注</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'note')">▼</button></div>
               <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-note"></div>
             </th>
-            <th>Thao Tác<br>操作</th>
+            <th>操作<br>Thao Tác</th>
           </tr>
         </thead>
         <tbody id="adminReceiveBody"></tbody>
@@ -773,7 +772,6 @@
 </div>
 
 <script>
-  // 1. CẤU HÌNH FIREBASE DỮ LIỆU REALTIME DÙNG CHUNG KHO SMT
   const firebaseConfig = {
     apiKey: "AIzaSyBJ-jEaf109L8hzcyyWXA6dB_AQ8A_pK4E",
     authDomain: "kho-smt.firebaseapp.com",
@@ -795,7 +793,6 @@
   let ngList = [];
   let adminReceives = [];
 
-  // LẮNG NGHE DỮ LIỆU REALTIME TỪ CLOUD FIREBASE
   db.ref('smt_master_data').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -806,7 +803,6 @@
       ngList = data.ngList || [];
       adminReceives = data.adminReceives || [];
     } else {
-      // Nếu cloud hoàn toàn trống, tự lấy dữ liệu cũ từ localStorage nếu có
       inventory = JSON.parse(localStorage.getItem('smt_inventory')) || [];
       chinaPurchases = JSON.parse(localStorage.getItem('smt_china_purchases')) || [];
       vietnamPurchases = JSON.parse(localStorage.getItem('smt_vn_purchases')) || [];
@@ -875,7 +871,6 @@
   }
 
   function saveDataToCloudOnly() {
-    // Lưu tập trung trên Firebase Cloud Realtime
     db.ref('smt_master_data').set({
       inventory: inventory,
       chinaPurchases: chinaPurchases,
@@ -884,7 +879,6 @@
       ngList: ngList,
       adminReceives: adminReceives
     });
-    // Lưu sao lưu cục bộ
     localStorage.setItem('smt_inventory', JSON.stringify(inventory));
     localStorage.setItem('smt_china_purchases', JSON.stringify(chinaPurchases));
     localStorage.setItem('smt_vn_purchases', JSON.stringify(vietnamPurchases));
@@ -919,7 +913,6 @@
     renderTables();
   }
 
-  // --- CÁC HÀM XỬ LÝ BỘ LỌC CỘT EXCEL ---
   function toggleColumnFilterDropdown(event, tableKey, colKey) {
     event.stopPropagation();
     const btn = event.currentTarget;
@@ -927,9 +920,7 @@
     if (!dropdown) return;
 
     const isAlreadyActive = dropdown.classList.contains('active');
-
     document.querySelectorAll('.excel-filter-dropdown').forEach(el => el.classList.remove('active'));
-
     if (isAlreadyActive) return;
 
     const rect = btn.getBoundingClientRect();
