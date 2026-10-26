@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Lý Kho & Đơn Mua Phụ Kiện SMT / SMT备件管理系统</title>
+  <!-- Thêm thư viện SheetJS để đọc và xuất file Excel (.xlsx) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f1f5f9; color: #1e293b; padding: 15px; }
+    
+    .container { width: 98%; max-width: 100%; margin: 0 auto; background: #ffffff; padding: 20px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    
+    /* CSS cho thanh cảnh báo */
+    .alert-banner { display: flex; justify-content: space-around; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 8px; margin-top: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .alert-item { font-size: 14px; font-weight: 600; color: #1e40af; display: flex; align-items: center; gap: 6px; }
+    .alert-item span { font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+    .alert-total { background: #dbeafe; color: #1d4ed8; }
+    .alert-safe { background: #dcfce7; color: #15803d; }
+    .alert-warning { background: #fee2e2; color: #b91c1c; }
+
+    .alert-btn {
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .alert-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .alert-btn.active-filter { box-shadow: 0 0 0 2px #2563eb; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 0; }
+    .header h2 { color: #1e40af; font-size: 22px; font-weight: 700; }
+    
+    .tabs { display: flex; gap: 8px; border-bottom: 2px solid #cbd5e1; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { padding: 10px 16px; border: none; background: #e2e8f0; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; color: #475569; transition: all 0.2s; font-size: 13px; }
+    .tab-btn.active { background: #2563eb; color: #ffffff; }
+    .tab-btn:hover:not(.active) { background: #cbd5e1; }
+
+    .sub-tabs { display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .sub-tab-btn { padding: 8px 16px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: #475569; }
+    .sub-tab-btn.active { background: #059669; color: white; border-color: #059669; }
+
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .search-group { display: flex; gap: 12px; flex: 1; min-width: 280px; }
+    .action-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    
+    input[type="text"], input[type="number"], select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; width: 100%; }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    
+    .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-primary { background-color: #2563eb; color: white; }
+    .btn-success { background-color: #059669; color: white; }
+    .btn-warning { background-color: #d97706; color: white; }
+    .btn-danger { background-color: #dc2626; color: white; }
+    .btn-secondary { background-color: #64748b; color: white; }
+    .btn-excel { background-color: #16a34a; color: white; }
+    .btn-undo { background-color: #7c3aed; color: white; }
+    .btn:hover { opacity: 0.9; }
+
+    /* BỔ SUNG & SỬA LỖI TRÔI / DÃN DÒNG CHO BẢNG */
+    .table-container { 
+      width: 100%; 
+      overflow: auto; 
+      max-height: 70vh; 
+      min-height: 320px; /* Đảm bảo chiều cao tối thiểu để popup lọc mở thoải mái */
+      border-radius: 8px; 
+      border: 1px solid #cbd5e1; 
+      position: relative; 
+    }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
+    
+    /* Giãn chiều cao dòng cơ bản + tối thiểu để dễ quan sát */
+    th, td { 
+      border-bottom: 1px solid #cbd5e1; 
+      border-right: 1px solid #cbd5e1; 
+      padding: 12px 10px; /* Tăng padding từ 8px lên 12px giúp giãn dòng */
+      vertical-align: middle; 
+      height: 48px; /* Giữ độ cao tiêu chuẩn đẹp cho dòng */
+    }
+    th:first-child, td:first-child { border-left: 1px solid #cbd5e1; }
+    
+    /* Cố định tiêu đề (Sticky header) */
+    th { 
+      background-color: #f1f5f9; 
+      color: #1e293b; 
+      font-weight: 700; 
+      white-space: nowrap; 
+      text-align: center; 
+      position: sticky; 
+      top: 0; 
+      z-index: 10; 
+      box-shadow: inset 0 -2px 0 #cbd5e1; 
+    }
+    
+    tr:nth-child(even) { background-color: #f8fafc; }
+    tr:hover { background-color: #f1f5f9; }
+    
+    /* CSS cho nút lọc kiểu Excel trên tiêu đề cột */
+    .th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
+    .filter-icon-btn {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #334155;
+      transition: background 0.2s;
+    }
+    .filter-icon-btn:hover, .filter-icon-btn.filtered {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    /* Popup Lọc cột cố định vị trí đỉnh cao (z-index 9999) */
+    .excel-filter-dropdown {
+      display: none;
+      position: fixed; /* Dùng fixed để không bị che khuất bởi overflow của bảng */
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 9999;
+      width: 230px;
+      padding: 10px;
+      text-align: left;
+    }
+    .excel-filter-dropdown.active { display: block; }
+    .excel-filter-search {
+      width: 100%;
+      padding: 6px 8px;
+      margin-bottom: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .excel-filter-options {
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      border: 1px solid #f1f5f9;
+      padding: 4px;
+    }
+    .excel-filter-option-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 3px 0;
+      cursor: pointer;
+      color: #334155;
+    }
+    .excel-filter-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .excel-filter-actions button {
+      flex: 1;
+      padding: 4px 6px;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+    .excel-filter-actions button.apply-btn {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; cursor: pointer; }
+    .badge-ok { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-pending { background-color: #fef3c7; color: #b45309; border: 1px solid #fde047; }
+    .badge-low { background-color: #fee2e2; color: #b91c1c; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); justify-content: center; align-items: center; z-index: 1000; }
+    .modal.active { display: flex; }
+    .modal-content { background: #ffffff; border-radius: 10px; width: 750px; max-width: 95%; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 18px; }
+    .close-btn { font-size: 22px; cursor: pointer; border: none; background: none; color: #94a3b8; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+    .form-group.full-width { grid-column: span 2; }
+    .form-group label { font-size: 12px; font-weight: 700; color: #334155; }
+    .required-label::after { content: " *"; color: red; }
+
+    .autocomplete-list {
+      position: absolute; top: 100%; left: 0; right: 0; background: white;
+      border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 6px 6px;
+      z-index: 99; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      display: none;
+    }
+    .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 13px; color: #334155; }
+    .autocomplete-item:hover { background-color: #f1f5f9; color: #2563eb; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h2>📦 Quản Lý Kho & Đơn Mua Phụ Kiện SMT / SMT备件管理系统</h2>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-weight: 700; color: #1e40af; font-size: 15px; background: #eff6ff; padding: 6px 12px; border: 1px solid #bfdbfe; border-radius: 6px;">MOKA SMT-TPM</span>
+      <button class="btn btn-undo" onclick="undoAction()" title="Quay lại thao tác trước (Ctrl+Z)">↩️ Hoàn Tác / 撤销 (Ctrl+Z)</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('inventory', event)">📦 Kho Phụ Kiện / 备件库存</button>
+    <button class="tab-btn" onclick="switchTab('monthly', event)">📋 Đơn Mua Hàng Tháng / 每月采购清单</button>
+    <button class="tab-btn" onclick="switchTab('ng', event)">🛠 Phụ Kiện NG / Báo Phế (NG配件 / 报废)</button>
+    <button class="tab-btn" onclick="switchTab('logs', event)">📜 Nhật Ký Xuất/Nhập (出入库日志)</button>
+    <button class="tab-btn" onclick="switchTab('admin-receive', event)">📑 Lịch Sử Lĩnh Đồ (Văn Thư) / 从文员领用的记录</button>
+  </div>
+
+  <!-- TAB 1: KHO PHỤ KIỆN -->
+  <div id="tab-inventory" class="tab-content">
+    <div class="alert-banner" id="alertBanner">
+      <div class="alert-item alert-btn alert-total" onclick="filterInventoryStatus('all')" title="Hiển thị tất cả">
+        📦 Tổng số loại phụ kiện / 备件总种类: <span id="statTotalTypes">0</span>
+      </div>
+      <div class="alert-item alert-btn alert-safe" id="btnFilterSafe" onclick="filterInventoryStatus('safe')" title="Bấm để lọc danh sách đạt mức an toàn">
+        ✅ Đạt mức an toàn / 安全库存内: <span id="statSafeCount">0</span>
+      </div>
+      <div class="alert-item alert-btn alert-warning" id="btnFilterLow" onclick="filterInventoryStatus('low')" title="Bấm để lọc danh sách cần mua">
+        ⚠ Quá mức an toàn (Cần mua) / 低于安全库存 (需采购): <span id="statLowCount">0</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-group">
+        <input type="text" id="searchInventory" placeholder="Tìm kiếm nhanh chung... / 快速全局搜索..." oninput="renderTables()" style="flex:3;">
+        <select id="filterCategory" onchange="renderTables()" style="flex:1;">
+          <option value="">Tất cả phân loại / 所有类别</option>
+        </select>
+      </div>
+      <div class="action-group">
+        <button class="btn btn-primary" onclick="openAddModal()">➕ Thêm Mới / 新增</button>
+        <button class="btn btn-danger" onclick="deleteSelected('inventory')">🗑️ Xóa Đã Chọn / 删除所选</button>
+        <button class="btn btn-excel" onclick="exportTableToExcel('inventoryTable', 'Kho_Phu_Kien_SMT.xlsx')">📥 Xuất Excel / 导出Excel</button>
+        <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+          📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelInventory(event)">
+        </label>
+      </div>
+    </div>
+    <div class="table-container">
+      <table id="inventoryTable">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-inventory" onclick="toggleSelectAll('inventory', this)"></th>
+            <th>STT / 序号</th>
+            <th>
+              <div class="th-content"><span>Mã Mua Bán / 物料编码</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'code')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-code"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Mã NCC / 供应商料号</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'supplierCode')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-supplierCode"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>SMT/DIP</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'smtDip')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-smtDip"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Phân Loại / 类别</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'category')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-category"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Tên Phụ Kiện / 备件品名</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'name')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-name"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Thiết Bị / 适用设备</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'device')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-device"></div>
+            </th>
+            <th>Số Lượng / 库存</th>
+            <th>Tồn Tối Thiểu / 安全库存</th>
+            <th>
+              <div class="th-content"><span>Vị Trí Kho / 库位</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'inventory', 'location')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-inventory-location"></div>
+            </th>
+            <th>Thao Tác / 操作</th>
+          </tr>
+        </thead>
+        <tbody id="inventoryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 2: ĐƠN MUA HÀNG THÁNG -->
+  <div id="tab-monthly" class="tab-content" style="display:none;">
+    <div class="sub-tabs">
+      <button class="sub-tab-btn active" onclick="switchPurchaseTab('china', event)">🇨🇳 Đơn Mua Trung Quốc (中国采购清单的记录)</button>
+      <button class="sub-tab-btn" onclick="switchPurchaseTab('vietnam', event)">🇻🇳 Đơn Mua Việt Nam (越南采购清单的记录)</button>
+    </div>
+
+    <!-- ĐƠN MUA TRUNG QUỐC -->
+    <div id="purchase-china">
+      <div class="toolbar">
+        <h3>申购SMT车间物料 (Đơn Mua Vật Tư Xưởng SMT - Trung Quốc)</h3>
+        <div class="search-group">
+          <input type="text" id="searchChina" placeholder="Tìm kiếm nhanh... / 快速搜索..." oninput="renderTables()">
+        </div>
+        <div class="action-group">
+          <button class="btn btn-success" onclick="openAddPurchaseModal('china')">➕ Thêm Đơn TQ / 新增中国订单</button>
+          <button class="btn btn-danger" onclick="deleteSelected('china')">🗑️ Xóa Đã Chọn / 删除所选</button>
+          <button class="btn btn-excel" onclick="exportTableToExcel('chinaTable', 'Don_Mua_Trung_Quoc.xlsx')">📥 Xuất Excel / 导出Excel</button>
+          <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+            📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelPurchase(event, 'china')">
+          </label>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="chinaTable">
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-china" onclick="toggleSelectAll('china', this)"></th>
+              <th>序号<br>STT</th>
+              <th>
+                <div class="th-content"><span>Tháng Mua</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'month')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-month"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Bộ Phận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'dept')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-dept"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Module</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'module')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-module"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Mã Chi Phí</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'costCenter')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-costCenter"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Mã Vật Liệu</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'code')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-code"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Tổ Mua Hàng</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'group')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-group"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'name')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-name"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Mô Tả TQ</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'descCn')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-descCn"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Đơn Vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'unit')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-unit"></div>
+              </th>
+              <th>Số Lượng<br>数量</th>
+              <th>Đơn Giá<br>预算单价</th>
+              <th>Tổng Giá Trước Thuế<br>预算总价</th>
+              <th>
+                <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'china', 'note')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-china-note"></div>
+              </th>
+              <th>Trạng Thái<br>签收</th>
+              <th>Thao Tác<br>操作</th>
+            </tr>
+          </thead>
+          <tbody id="chinaPurchaseBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ĐƠN MUA VIỆT NAM -->
+    <div id="purchase-vietnam" style="display:none;">
+      <div class="toolbar">
+        <h3>申领计划单 / ĐƠN KẾ HOẠCH XIN MUA (Việt Nam)</h3>
+        <div class="search-group">
+          <input type="text" id="searchVietnam" placeholder="Tìm kiếm nhanh... / 快速搜索..." oninput="renderTables()">
+        </div>
+        <div class="action-group">
+          <button class="btn btn-success" onclick="openAddPurchaseModal('vietnam')">➕ Thêm Đơn VN / 新增越南订单</button>
+          <button class="btn btn-danger" onclick="deleteSelected('vietnam')">🗑 Xóa Đã Chọn / 删除所选</button>
+          <button class="btn btn-excel" onclick="exportTableToExcel('vietnamTable', 'Don_Mua_Viet_Nam.xlsx')">📥 Xuất Excel / 导出Excel</button>
+          <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+            📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelPurchase(event, 'vietnam')">
+          </label>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="vietnamTable">
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-vietnam" onclick="toggleSelectAll('vietnam', this)"></th>
+              <th>序号<br>STT</th>
+              <th>
+                <div class="th-content"><span>Tháng Mua</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'month')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-month"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Phân loại</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'category')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-category"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Bộ phận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'dept')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-dept"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Mã vật liệu</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'code')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-code"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Mô tả Trung - Việt</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'descVnCn')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-descVnCn"></div>
+              </th>
+              <th>Số lượng<br>数量</th>
+              <th>
+                <div class="th-content"><span>Đơn vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'unit')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-unit"></div>
+              </th>
+              <th>Đơn giá dự toán<br>预算单价</th>
+              <th>Tổng giá dự toán<br>预算总价</th>
+              <th>
+                <div class="th-content"><span>Khía cạnh sử dụng</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'usage')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-usage"></div>
+              </th>
+              <th>
+                <div class="th-content"><span>Người quản lý</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'vietnam', 'keeper')">▼</button></div>
+                <div class="excel-filter-dropdown" id="filter-dropdown-vietnam-keeper"></div>
+              </th>
+              <th>Trạng Thái<br>签收</th>
+              <th>Thao Tác<br>操作</th>
+            </tr>
+          </thead>
+          <tbody id="vietnamPurchaseBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: NG / BÁO PHẾ -->
+  <div id="tab-ng" class="tab-content" style="display:none;">
+    <div class="toolbar">
+      <h3>🛠 Quản Lý Phụ Kiện Hỏng / Báo Phế (NG/Scrap - NG配件 / 报废)</h3>
+      <div class="search-group">
+        <input type="text" id="searchNG" placeholder="Tìm kiếm nhanh... / 快速搜索..." oninput="renderTables()">
+      </div>
+      <div class="action-group">
+        <button class="btn btn-danger" onclick="openNGDirectModal()">➕ Thêm Phụ Kiện NG / 新增报废备件</button>
+        <button class="btn btn-danger" onclick="deleteSelected('ng')">🗑 Xóa Đã Chọn / 删除所选</button>
+        <button class="btn btn-excel" onclick="exportTableToExcel('ngTable', 'Phu_Kien_NG.xlsx')">📥 Xuất Excel / 导出Excel</button>
+        <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+          📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelNG(event)">
+        </label>
+      </div>
+    </div>
+    <div class="table-container">
+      <table id="ngTable">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-ng" onclick="toggleSelectAll('ng', this)"></th>
+            <th>STT / 序号</th>
+            <th>
+              <div class="th-content"><span>Thời Gian</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'time')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-ng-time"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Mã Mua Bán</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'code')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-ng-code"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'name')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-ng-name"></div>
+            </th>
+            <th>Số Lượng NG / 报废数量</th>
+            <th>
+              <div class="th-content"><span>Lý Do NG</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'reason')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-ng-reason"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Người Báo Phế</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'ng', 'user')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-ng-user"></div>
+            </th>
+            <th>Thao Tác / 操作</th>
+          </tr>
+        </thead>
+        <tbody id="ngBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 4: NHẬT KÝ XUẤT NHẬP -->
+  <div id="tab-logs" class="tab-content" style="display:none;">
+    <div class="toolbar">
+      <h3>📜 Lịch Sử Xuất / Nhập Kho (出入库日志)</h3>
+      <div class="search-group">
+        <input type="text" id="searchLogs" placeholder="Tìm kiếm nhanh... / 快速搜索..." oninput="renderTables()">
+      </div>
+      <div class="action-group">
+        <button class="btn btn-primary" onclick="openAddLogModal()">➕ Thêm Nhật Ký / 新增日志</button>
+        <button class="btn btn-danger" onclick="deleteSelected('logs')">🗑️ Xóa Đã Chọn / 删除所选</button>
+        <button class="btn btn-excel" onclick="exportTableToExcel('logsTable', 'Nhat_Ky_Kho.xlsx')">📥 Xuất Excel / 导出Excel</button>
+        <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+          📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelLogs(event)">
+        </label>
+      </div>
+    </div>
+    <div class="table-container">
+      <table id="logsTable">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-logs" onclick="toggleSelectAll('logs', this)"></th>
+            <th>STT / 序号</th>
+            <th>
+              <div class="th-content"><span>Thời Gian</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'time')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-logs-time"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Loại Thao Tác</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'type')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-logs-type"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Mã Mua Bán</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'code')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-logs-code"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Tên Phụ Kiện</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'name')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-logs-name"></div>
+            </th>
+            <th>Thay Đổi / 变动数量</th>
+            <th>Tồn Sau Cùng / 结存数量</th>
+            <th>
+              <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'logs', 'note')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-logs-note"></div>
+            </th>
+            <th>Thao Tác / 操作</th>
+          </tr>
+        </thead>
+        <tbody id="logsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 5: LỊCH SỬ LĨNH ĐỒ VĂN THƯ -->
+  <div id="tab-admin-receive" class="tab-content" style="display:none;">
+    <div class="toolbar">
+      <h3>📑 Lịch Sử Lĩnh Đồ Về Dùng Từ Văn Thư (行政文书领用记录)</h3>
+      <div class="search-group">
+        <input type="text" id="searchAdminReceive" placeholder="Tìm kiếm nhanh... / 快速搜索..." oninput="renderTables()">
+      </div>
+      <div class="action-group">
+        <button class="btn btn-primary" onclick="openAdminReceiveModal()">➕ Thêm Lịch Sử Lĩnh Đồ / 新增领用记录</button>
+        <button class="btn btn-danger" onclick="deleteSelected('adminReceive')">🗑️ Xóa Đã Chọn / 删除所选</button>
+        <button class="btn btn-excel" onclick="exportTableToExcel('adminReceiveTable', 'Lich_Su_Linh_Do_Van_Thu.xlsx')">📥 Xuất Excel / 导出Excel</button>
+        <label class="btn btn-excel" style="cursor:pointer; margin-bottom:0;">
+          📤 Nhập Excel / 导入Excel <input type="file" accept=".xlsx, .xls, .csv" style="display:none" onchange="importExcelAdminReceive(event)">
+        </label>
+      </div>
+    </div>
+    <div class="table-container">
+      <table id="adminReceiveTable">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll-adminReceive" onclick="toggleSelectAll('adminReceive', this)"></th>
+            <th>STT / 序号</th>
+            <th>
+              <div class="th-content"><span>Thời Gian Lĩnh</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'time')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-time"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Tên Vật Tư</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'itemName')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-itemName"></div>
+            </th>
+            <th>Số Lượng Lĩnh<br>领用数量</th>
+            <th>
+              <div class="th-content"><span>Đơn Vị</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'unit')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-unit"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Bộ Phận Nhận</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'dept')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-dept"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Người Nhận Đồ</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'receiver')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-receiver"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Người Giao</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'giver')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-giver"></div>
+            </th>
+            <th>
+              <div class="th-content"><span>Ghi Chú</span><button class="filter-icon-btn" onclick="toggleColumnFilterDropdown(event, 'adminReceive', 'note')">▼</button></div>
+              <div class="excel-filter-dropdown" id="filter-dropdown-adminReceive-note"></div>
+            </th>
+            <th>Thao Tác<br>操作</th>
+          </tr>
+        </thead>
+        <tbody id="adminReceiveBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal" id="itemModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">Thêm Phụ Kiện SMT Mới / 添加新备件</h3>
+      <button class="close-btn" onclick="closeModal('itemModal')">&times;</button>
+    </div>
+    <form id="itemForm" onsubmit="saveItem(event)">
+      <input type="hidden" id="itemId">
+      <div class="form-grid">
+        <div class="form-group"><label>Mã Mua Bán / 物料编码</label><input type="text" id="itemCode" placeholder="Nhập hoặc quét mã..."></div>
+        <div class="form-group"><label>Mã NCC / 供应商料号</label><input type="text" id="supplierCode" placeholder="Mã của nhà cung cấp"></div>
+        <div class="form-group"><label>SMT/DIP</label><input type="text" id="itemSmtDip" placeholder="SMT hoặc DIP"></div>
+        <div class="form-group">
+          <label>Phân Loại / 类别</label>
+          <input type="text" id="itemCategory" autocomplete="off" placeholder="Chọn hoặc tự gõ loại mới..." onfocus="showSuggestions('itemCategory', 'categoryList')" oninput="filterSuggestions('itemCategory', 'categoryList')">
+          <div id="categoryList" class="autocomplete-list"></div>
+        </div>
+        <div class="form-group">
+          <label>Thiết Bị Sử Dụng / 适用设备</label>
+          <input type="text" id="itemDevice" autocomplete="off" placeholder="Chọn hoặc tự gõ thiết bị mới..." onfocus="showSuggestions('itemDevice', 'deviceList')" oninput="filterSuggestions('itemDevice', 'deviceList')">
+          <div id="deviceList" class="autocomplete-list"></div>
+        </div>
+        <div class="form-group full-width"><label class="required-label">Tên Phụ Kiện / 备件品名</label><input type="text" id="itemName" required placeholder="Tên đầy đủ phụ kiện (Bắt buộc)"></div>
+        <div class="form-group"><label>Số Lượng Tồn / 初始库存</label><input type="number" id="itemStock" min="0" value="0"></div>
+        <div class="form-group"><label>Mức Tồn Tối Thiểu / 安全库存</label><input type="number" id="itemMinStock" min="0" value="5"></div>
+        <div class="form-group full-width"><label>Vị Trí Kho / 存放库位</label><input type="text" id="itemLocation" placeholder="Ví dụ: Tủ A - Kệ 01"></div>
+      </div>
+      <div style="margin-top:20px; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('itemModal')">Hủy Bỏ / 取消</button>
+        <button type="submit" class="btn btn-primary">Lưu Phụ Kiện / 保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="purchaseModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="purchaseModalTitle">Thêm Đơn Mua Hàng / 添加采购订单</h3>
+      <button class="close-btn" onclick="closeModal('purchaseModal')">&times;</button>
+    </div>
+    <form id="purchaseForm" onsubmit="savePurchaseItem(event)">
+      <input type="hidden" id="pType">
+      <input type="hidden" id="pId">
+      <div class="form-grid" id="purchaseFormGrid"></div>
+      <div style="margin-top:20px; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('purchaseModal')">Hủy Bỏ / 取消</button>
+        <button type="submit" class="btn btn-success">Lưu Đơn Mua / 保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="exportModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Xuất Kho Phụ Kiện / 备件出库</h3>
+      <button class="close-btn" onclick="closeModal('exportModal')">&times;</button>
+    </div>
+    <form onsubmit="confirmExport(event)">
+      <input type="hidden" id="exportItemId">
+      <div class="form-group" style="margin-bottom:15px;"><label>Tên Phụ Kiện / 品名:</label><input type="text" id="exportItemName" disabled></div>
+      <div class="form-group" style="margin-bottom:15px;"><label>Tồn Hiện Tại / 当前库存:</label><input type="number" id="exportCurrentStock" disabled></div>
+      <div class="form-group" style="margin-bottom:15px;"><label>Số Lượng Xuất / 出库数量 *</label><input type="number" id="exportQty" min="1" required></div>
+      <div class="form-group" style="margin-bottom:15px;"><label>Ghi Chú / Người Nhận / 备注 / 领用人:</label><input type="text" id="exportNote" placeholder="Line sản xuất..."></div>
+      <div style="text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('exportModal')">Hủy / 取消</button>
+        <button type="submit" class="btn btn-warning">Xác Nhận Xuất / 确认出库</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="ngModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="ngModalTitle">Thêm Phụ Kiện NG / Báo Phế (添加报废备件)</h3>
+      <button class="close-btn" onclick="closeModal('ngModal')">&times;</button>
+    </div>
+    <form onsubmit="confirmNGDirect(event)">
+      <input type="hidden" id="ngId">
+      <input type="hidden" id="ngItemId">
+      <div class="form-grid">
+        <div class="form-group"><label>Mã Vật Liệu / 物料编码</label><input type="text" id="ngCode" placeholder="PO-NXT-2026"></div>
+        <div class="form-group"><label class="required-label">Tên Phụ Kiện / 备件品名</label><input type="text" id="ngName" required placeholder="Tên linh kiện"></div>
+        <div class="form-group"><label class="required-label">Số Lượng NG / 报废数量</label><input type="number" id="ngQty" min="1" value="1" required></div>
+        <div class="form-group"><label>Người Báo Phế / 记录人</label><input type="text" id="ngUser" placeholder="Tên kỹ thuật viên"></div>
+        <div class="form-group full-width"><label class="required-label">Lý Do NG / 报废原因</label><input type="text" id="ngReason" required placeholder="Mòn kim, gãy Feeder..."></div>
+      </div>
+      <div style="margin-top:20px; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('ngModal')">Hủy / 取消</button>
+        <button type="submit" class="btn btn-danger">Lưu Phụ Kiện NG / 保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="logModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="logModalTitle">Thêm Nhật Ký Xuất/Nhập / 新增出入库日志</h3>
+      <button class="close-btn" onclick="closeModal('logModal')">&times;</button>
+    </div>
+    <form onsubmit="saveLog(event)">
+      <input type="hidden" id="logId">
+      <div class="form-grid">
+        <div class="form-group"><label>Thời Gian / 时间</label><input type="text" id="logTime" placeholder="Để trống tự động lấy giờ hiện tại..."></div>
+        <div class="form-group">
+          <label class="required-label">Loại Thao Tác / 操作类型</label>
+          <select id="logType" required>
+            <option value="Nhập kho / 入库">Nhập kho / 入库</option>
+            <option value="Xuất kho / 出库">Xuất kho / 出库</option>
+            <option value="Báo Phế / 报废">Báo Phế / 报废</option>
+            <option value="Điều chỉnh / 调整">Điều chỉnh / 调整</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Mã Mua Bán / 物料编码</label><input type="text" id="logCode" placeholder="Mã linh kiện..."></div>
+        <div class="form-group"><label class="required-label">Tên Phụ Kiện / 备件品名</label><input type="text" id="logName" required placeholder="Tên linh kiện..."></div>
+        <div class="form-group"><label>Số Lượng Thay Đổi / 变动数量</label><input type="number" id="logChange" value="1" placeholder="Ví dụ: +10 hoặc -5"></div>
+        <div class="form-group"><label>Tồn Sau Cùng / 结存数量</label><input type="number" id="logAfterStock" value="0"></div>
+        <div class="form-group full-width"><label>Ghi Chú / Người Thực Hiện / 备注 / 操作人</label><input type="text" id="logNote" placeholder="Ví dụ: Xuất cho Line 1 (Người nhận: A)"></div>
+      </div>
+      <div style="margin-top:20px; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('logModal')">Hủy / 取消</button>
+        <button type="submit" class="btn btn-primary">Lưu Nhật Ký / 保存日志</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="adminReceiveModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="adminReceiveModalTitle">Thêm Lịch Sử Lĩnh Đồ Văn Thư / 添加文书领用记录</h3>
+      <button class="close-btn" onclick="closeModal('adminReceiveModal')">&times;</button>
+    </div>
+    <form onsubmit="saveAdminReceive(event)">
+      <input type="hidden" id="adminRecId">
+      <div class="form-grid">
+        <div class="form-group"><label>Thời Gian Lĩnh / 领用时间</label><input type="text" id="adminRecTime" placeholder="Để trống sẽ tự động lấy thời gian hiện tại..."></div>
+        <div class="form-group"><label class="required-label">Tên Vật Tư / Văn Phòng Phẩm / 物品名称</label><input type="text" id="adminRecItemName" required placeholder="Ví dụ: Giấy A4, Bút bi..."></div>
+        <div class="form-group"><label class="required-label">Số Lượng Lĩnh / 领用数量</label><input type="number" id="adminRecQty" min="1" value="1" required></div>
+        <div class="form-group"><label>Đơn Vị / 单位</label><input type="text" id="adminRecUnit" value="Cái / Hộp / Ram"></div>
+        <div class="form-group"><label>Bộ Phận Nhận / 领用部门</label><input type="text" id="adminRecDept" placeholder="Ví dụ: Bộ phận SMT / Kế toán..."></div>
+        <div class="form-group"><label>Người Nhận Đồ / 领用人签名</label><input type="text" id="adminRecReceiver" placeholder="Tên người nhận"></div>
+        <div class="form-group"><label>Người Giao / Văn Thư / 发货人/文书</label><input type="text" id="adminRecGiver" placeholder="Tên văn thư cấp phát"></div>
+        <div class="form-group"><label>Ghi Chú / 备注</label><input type="text" id="adminRecNote" placeholder="Ghi chú thêm..."></div>
+      </div>
+      <div style="margin-top:20px; text-align:right; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('adminReceiveModal')">Hủy Bỏ / 取消</button>
+        <button type="submit" class="btn btn-primary">Lưu Lịch Sử / 保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let inventory = JSON.parse(localStorage.getItem('smt_inventory')) || [];
+  let chinaPurchases = JSON.parse(localStorage.getItem('smt_china_purchases')) || [];
+  let vietnamPurchases = JSON.parse(localStorage.getItem('smt_vn_purchases')) || [];
+  let logs = JSON.parse(localStorage.getItem('smt_logs')) || [];
+  let ngList = JSON.parse(localStorage.getItem('smt_ng')) || [];
+  let adminReceives = JSON.parse(localStorage.getItem('smt_admin_receives')) || [];
+
+  let currentInventoryFilter = 'all';
+
+  let activeColumnFilters = {
+    inventory: {},
+    china: {},
+    vietnam: {},
+    ng: {},
+    logs: {},
+    adminReceive: {}
+  };
+
+  let historyStack = [];
+  const MAX_HISTORY = 30;
+
+  function pushHistory() {
+    const currentState = JSON.stringify({ inventory, chinaPurchases, vietnamPurchases, logs, ngList, adminReceives });
+    if (historyStack.length > 0 && historyStack[historyStack.length - 1] === currentState) return;
+    historyStack.push(currentState);
+    if (historyStack.length > MAX_HISTORY) historyStack.shift();
+  }
+
+  function undoAction() {
+    if (historyStack.length === 0) {
+      alert('Không còn thao tác nào để hoàn tác! / 没有可撤销的操作！');
+      return;
+    }
+    const previousStateStr = historyStack.pop();
+    const state = JSON.parse(previousStateStr);
+    inventory = state.inventory;
+    chinaPurchases = state.chinaPurchases;
+    vietnamPurchases = state.vietnamPurchases;
+    logs = state.logs;
+    ngList = state.ngList;
+    adminReceives = state.adminReceives;
+
+    saveDataToStorageOnly();
+    renderTables();
+    alert('Đã hoàn tác về thao tác trước thành công! / 撤销成功！');
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undoAction();
+    }
+  });
+
+  let defaultCategories = ['Feeder / 飞达', 'Nozzle / 吸嘴', 'Cảm Biến / 传感器', 'Linh Kiện Khác / 其他备件'];
+  let defaultDevices = ['Fuji NXT III', 'Fuji NXT II', 'Panasonic NPM', 'Yamaha YSM', 'ASM Siplace'];
+
+  function saveData() {
+    pushHistory();
+    saveDataToStorageOnly();
+    updateCategoryFilter();
+  }
+
+  function saveDataToStorageOnly() {
+    localStorage.setItem('smt_inventory', JSON.stringify(inventory));
+    localStorage.setItem('smt_china_purchases', JSON.stringify(chinaPurchases));
+    localStorage.setItem('smt_vn_purchases', JSON.stringify(vietnamPurchases));
+    localStorage.setItem('smt_logs', JSON.stringify(logs));
+    localStorage.setItem('smt_ng', JSON.stringify(ngList));
+    localStorage.setItem('smt_admin_receives', JSON.stringify(adminReceives));
+  }
+
+  function toggleSelectAll(tableType, sourceCheckbox) {
+    const checkboxes = document.querySelectorAll(`.row-checkbox-${tableType}`);
+    checkboxes.forEach(cb => cb.checked = sourceCheckbox.checked);
+  }
+
+  function deleteSelected(tableType) {
+    const checkboxes = document.querySelectorAll(`.row-checkbox-${tableType}:checked`);
+    if (checkboxes.length === 0) {
+      alert('Vui lòng chọn ít nhất một mục để xóa! / 请至少选择一项进行删除！');
+      return;
+    }
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${checkboxes.length} mục đã chọn không? / 确定要删除选中的 ${checkboxes.length} 项吗？`)) return;
+
+    const idsToDelete = Array.from(checkboxes).map(cb => String(cb.value));
+
+    if (tableType === 'inventory') inventory = inventory.filter(i => !idsToDelete.includes(String(i.id)));
+    else if (tableType === 'china') chinaPurchases = chinaPurchases.filter(i => !idsToDelete.includes(String(i.id)));
+    else if (tableType === 'vietnam') vietnamPurchases = vietnamPurchases.filter(i => !idsToDelete.includes(String(i.id)));
+    else if (tableType === 'ng') ngList = ngList.filter(i => !idsToDelete.includes(String(i.id)));
+    else if (tableType === 'logs') logs = logs.filter(i => !idsToDelete.includes(String(i.id)));
+    else if (tableType === 'adminReceive') adminReceives = adminReceives.filter(i => !idsToDelete.includes(String(i.id)));
+
+    saveData();
+    renderTables();
+  }
+
+  // --- CÁC HÀM XỬ LÝ BỘ LỌC CỘT DÙNG THUỘC TÍNH FIXED ĐỂ KHÔNG BỊ TRÔI / KHUẤT ---
+  function toggleColumnFilterDropdown(event, tableKey, colKey) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const dropdown = document.getElementById(`filter-dropdown-${tableKey}-${colKey}`);
+    if (!dropdown) return;
+
+    const isAlreadyActive = dropdown.classList.contains('active');
+
+    // Đóng toàn bộ các dropdown đang mở khác
+    document.querySelectorAll('.excel-filter-dropdown').forEach(el => el.classList.remove('active'));
+
+    if (isAlreadyActive) return;
+
+    // Định vị dropdown ngay phía dưới nút bấm theo tọa độ toàn màn hình
+    const rect = btn.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+    dropdown.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+
+    let dataList = [];
+    if (tableKey === 'inventory') dataList = inventory;
+    else if (tableKey === 'china') dataList = chinaPurchases;
+    else if (tableKey === 'vietnam') dataList = vietnamPurchases;
+    else if (tableKey === 'ng') dataList = ngList;
+    else if (tableKey === 'logs') dataList = logs;
+    else if (tableKey === 'adminReceive') dataList = adminReceives;
+
+    let uniqueValues = [...new Set(dataList.map(item => String(item[colKey] !== undefined && item[colKey] !== null && item[colKey] !== '' ? item[colKey] : '-')))].sort();
+
+    let currentSelected = activeColumnFilters[tableKey][colKey];
+    let isAllChecked = (currentSelected === undefined);
+
+    let html = `
+      <input type="text" class="excel-filter-search" placeholder="Tìm giá trị... / 搜索..." oninput="filterDropdownOptions(this, '${tableKey}', '${colKey}')">
+      <label class="excel-filter-option-item" onclick="toggleSelectAllDropdown(this, '${tableKey}', '${colKey}')">
+        <input type="checkbox" id="select-all-${tableKey}-${colKey}" ${isAllChecked ? 'checked' : ''}> <b>(Chọn Tất Cả / 全选)</b>
+      </label>
+      <div class="excel-filter-options" id="options-box-${tableKey}-${colKey}">
+    `;
+
+    uniqueValues.forEach(val => {
+      let isChecked = isAllChecked || (currentSelected && currentSelected.has(val)) ? 'checked' : '';
+      html += `
+        <label class="excel-filter-option-item">
+          <input type="checkbox" value="${val}" ${isChecked} onchange="checkIndividualCheckbox('${tableKey}', '${colKey}')">
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${val}">${val === '' ? '(Trống)' : val}</span>
+        </label>
+      `;
+    });
+
+    html += `
+      </div>
+      <div class="excel-filter-actions">
+        <button onclick="clearColumnFilter('${tableKey}', '${colKey}')">Bỏ lọc</button>
+        <button class="apply-btn" onclick="applyColumnFilter('${tableKey}', '${colKey}')">Lọc</button>
+      </div>
+    `;
+
+    dropdown.innerHTML = html;
+    dropdown.classList.add('active');
+  }
+
+  function filterDropdownOptions(inputEl, tableKey, colKey) {
+    const keyword = inputEl.value.toLowerCase();
+    const optionsBox = document.getElementById(`options-box-${tableKey}-${colKey}`);
+    const labels = optionsBox.getElementsByTagName('label');
+    for (let label of labels) {
+      let text = label.innerText.toLowerCase();
+      label.style.display = text.includes(keyword) ? 'flex' : 'none';
+    }
+  }
+
+  function toggleSelectAllDropdown(labelEl, tableKey, colKey) {
+    const selectAllCheckbox = labelEl.querySelector('input[type="checkbox"]');
+    const optionsBox = document.getElementById(`options-box-${tableKey}-${colKey}`);
+    const checkboxes = optionsBox.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+  }
+
+  function checkIndividualCheckbox(tableKey, colKey) {
+    const selectAllCb = document.getElementById(`select-all-${tableKey}-${colKey}`);
+    const optionsBox = document.getElementById(`options-box-${tableKey}-${colKey}`);
+    const checkboxes = optionsBox.querySelectorAll('input[type="checkbox"]');
+    let allChecked = true;
+    checkboxes.forEach(cb => {
+      if (!cb.checked) allChecked = false;
+    });
+    if (selectAllCb) selectAllCb.checked = allChecked;
+  }
+
+  function applyColumnFilter(tableKey, colKey) {
+    const optionsBox = document.getElementById(`options-box-${tableKey}-${colKey}`);
+    const checkboxes = optionsBox.querySelectorAll('input[type="checkbox"]');
+    let selectedSet = new Set();
+    checkboxes.forEach(cb => {
+      if (cb.checked) selectedSet.add(cb.value);
+    });
+
+    let dataList = [];
+    if (tableKey === 'inventory') dataList = inventory;
+    else if (tableKey === 'china') dataList = chinaPurchases;
+    else if (tableKey === 'vietnam') dataList = vietnamPurchases;
+    else if (tableKey === 'ng') dataList = ngList;
+    else if (tableKey === 'logs') dataList = logs;
+    else if (tableKey === 'adminReceive') dataList = adminReceives;
+
+    let uniqueValues = [...new Set(dataList.map(item => String(item[colKey] !== undefined && item[colKey] !== null && item[colKey] !== '' ? item[colKey] : '-')))];
+    
+    if (selectedSet.size === uniqueValues.length) {
+      delete activeColumnFilters[tableKey][colKey];
+    } else {
+      activeColumnFilters[tableKey][colKey] = selectedSet;
+    }
+
+    const dropdownEl = document.getElementById(`filter-dropdown-${tableKey}-${colKey}`);
+    const thEl = dropdownEl.closest('th');
+    const btn = thEl ? thEl.querySelector('.filter-icon-btn') : null;
+    if (btn) {
+      if (activeColumnFilters[tableKey][colKey]) btn.classList.add('filtered');
+      else btn.classList.remove('filtered');
+    }
+
+    dropdownEl.classList.remove('active');
+    renderTables();
+  }
+
+  function clearColumnFilter(tableKey, colKey) {
+    delete activeColumnFilters[tableKey][colKey];
+    const dropdownEl = document.getElementById(`filter-dropdown-${tableKey}-${colKey}`);
+    const thEl = dropdownEl.closest('th');
+    const btn = thEl ? thEl.querySelector('.filter-icon-btn') : null;
+    if (btn) btn.classList.remove('filtered');
+    dropdownEl.classList.remove('active');
+    renderTables();
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.excel-filter-dropdown') && !e.target.closest('.filter-icon-btn')) {
+      document.querySelectorAll('.excel-filter-dropdown').forEach(el => el.classList.remove('active'));
+    }
+  });
+
+  function matchColumnFilters(item, tableKey) {
+    let filters = activeColumnFilters[tableKey];
+    if (!filters) return true;
+    for (let colKey in filters) {
+      let allowedSet = filters[colKey];
+      if (allowedSet) {
+        let val = String(item[colKey] !== undefined && item[colKey] !== null && item[colKey] !== '' ? item[colKey] : '-');
+        if (!allowedSet.has(val)) return false;
+      }
+    }
+    return true;
+  }
+  // --- KẾT THÚC BỘ LỌC CỘT ---
+
+  function showSuggestions(inputId, listId) {
+    let items = [];
+    if (listId === 'categoryList') {
+      const dbCats = inventory.map(i => i.category).filter(Boolean);
+      items = [...new Set([...defaultCategories, ...dbCats])];
+    } else if (listId === 'deviceList') {
+      const dbDevs = inventory.map(i => i.device).filter(Boolean);
+      items = [...new Set([...defaultDevices, ...dbDevs])];
+    }
+    renderAutocompleteItems(inputId, listId, items);
+  }
+
+  function filterSuggestions(inputId, listId) {
+    const val = document.getElementById(inputId).value.toLowerCase();
+    let items = [];
+    if (listId === 'categoryList') {
+      const dbCats = inventory.map(i => i.category).filter(Boolean);
+      items = [...new Set([...defaultCategories, ...dbCats])];
+    } else if (listId === 'deviceList') {
+      const dbDevs = inventory.map(i => i.device).filter(Boolean);
+      items = [...new Set([...defaultDevices, ...dbDevs])];
+    }
+    const filtered = items.filter(i => i.toLowerCase().includes(val));
+    renderAutocompleteItems(inputId, listId, filtered);
+  }
+
+  function renderAutocompleteItems(inputId, listId, items) {
+    const list = document.getElementById(listId);
+    list.innerHTML = '';
+    if (items.length === 0) { list.style.display = 'none'; return; }
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'autocomplete-item';
+      div.innerText = item;
+      div.onclick = function() {
+        document.getElementById(inputId).value = item;
+        list.style.display = 'none';
+      };
+      list.appendChild(div);
+    });
+    list.style.display = 'block';
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group')) {
+      document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+    }
+  });
+
+  function updateCategoryFilter() {
+    const filterSelect = document.getElementById('filterCategory');
+    if (!filterSelect) return;
+    const categories = [...new Set(inventory.map(item => item.category).filter(Boolean))];
+    let html = '<option value="">Tất cả phân loại / 所有类别</option>';
+    categories.forEach(cat => { html += `<option value="${cat}">${cat}</option>`; });
+    filterSelect.innerHTML = html;
+  }
+
+  function switchTab(tabName, evt) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabName).style.display = 'block';
+    if(evt) evt.target.classList.add('active');
+    renderTables();
+  }
+
+  function switchPurchaseTab(type, evt) {
+    document.getElementById('purchase-china').style.display = type === 'china' ? 'block' : 'none';
+    document.getElementById('purchase-vietnam').style.display = type === 'vietnam' ? 'block' : 'none';
+    document.querySelectorAll('.sub-tab-btn').forEach(el => el.classList.remove('active'));
+    if(evt) evt.target.classList.add('active');
+  }
+
+  function filterInventoryStatus(status) {
+    currentInventoryFilter = status;
+    document.getElementById('btnFilterSafe').classList.remove('active-filter');
+    document.getElementById('btnFilterLow').classList.remove('active-filter');
+    if (status === 'safe') document.getElementById('btnFilterSafe').classList.add('active-filter');
+    else if (status === 'low') document.getElementById('btnFilterLow').classList.add('active-filter');
+    renderTables();
+  }
+
+  function updateDashboardStats() {
+    let totalTypes = inventory.length;
+    let lowCount = 0;
+    inventory.forEach(item => {
+      let stock = Number(item.stock || 0);
+      let minStock = Number(item.minStock || 0);
+      if (stock <= minStock) lowCount++;
+    });
+    let safeCount = totalTypes - lowCount;
+    document.getElementById('statTotalTypes').innerText = totalTypes;
+    document.getElementById('statSafeCount').innerText = safeCount;
+    document.getElementById('statLowCount').innerText = lowCount;
+  }
+
+  function renderTables() {
+    updateCategoryFilter();
+    updateDashboardStats(); 
+    
+    if(document.getElementById('selectAll-inventory')) document.getElementById('selectAll-inventory').checked = false;
+    if(document.getElementById('selectAll-china')) document.getElementById('selectAll-china').checked = false;
+    if(document.getElementById('selectAll-vietnam')) document.getElementById('selectAll-vietnam').checked = false;
+    if(document.getElementById('selectAll-ng')) document.getElementById('selectAll-ng').checked = false;
+    if(document.getElementById('selectAll-logs')) document.getElementById('selectAll-logs').checked = false;
+    if(document.getElementById('selectAll-adminReceive')) document.getElementById('selectAll-adminReceive').checked = false;
+
+    // 1. RENDER KHO PHỤ KIỆN
+    const searchInv = (document.getElementById('searchInventory')?.value || '').toLowerCase();
+    const catFilter = document.getElementById('filterCategory')?.value || '';
+    const invBody = document.getElementById('inventoryBody');
+    invBody.innerHTML = '';
+    
+    inventory.filter(item => {
+      const isLow = Number(item.stock || 0) <= Number(item.minStock || 0);
+      if (currentInventoryFilter === 'safe' && isLow) return false;
+      if (currentInventoryFilter === 'low' && !isLow) return false;
+
+      const matchSearch = (item.code && String(item.code).toLowerCase().includes(searchInv)) || 
+                          (item.name && String(item.name).toLowerCase().includes(searchInv)) || 
+                          (item.device && String(item.device).toLowerCase().includes(searchInv));
+      const matchCat = catFilter === '' || item.category === catFilter;
+      const matchCol = matchColumnFilters(item, 'inventory');
+      return matchSearch && matchCat && matchCol;
+    }).forEach((item, index) => {
+      const isLow = Number(item.stock || 0) <= Number(item.minStock || 0);
+      invBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-inventory" value="${item.id}"></td>
+          <td style="text-align:center;">${index + 1}</td>
+          <td><b>${item.code || '-'}</b></td>
+          <td>${item.supplierCode || '-'}</td>
+          <td style="text-align:center;"><b>${item.smtDip || 'SMT'}</b></td>
+          <td>${item.category || '-'}</td>
+          <td>${item.name || '-'}</td>
+          <td>${item.device || '-'}</td>
+          <td style="text-align:center;"><span class="badge ${isLow ? 'badge-low' : 'badge-ok'}">${item.stock || 0}</span></td>
+          <td style="text-align:center;">${item.minStock || 0}</td>
+          <td>${item.location || '-'}</td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-warning" onclick="openExportModal(${item.id})">出库 / Xuất</button>
+            <button class="btn btn-danger" onclick="openNGFromInventory(${item.id})">报废 / Báo Phế</button>
+            <button class="btn btn-secondary" onclick="editItem(${item.id})">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deleteInventoryItem(${item.id})">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // 2. RENDER ĐƠN MUA TRUNG QUỐC
+    const searchChina = (document.getElementById('searchChina')?.value || '').toLowerCase();
+    const chinaBody = document.getElementById('chinaPurchaseBody');
+    chinaBody.innerHTML = '';
+    chinaPurchases.filter(p => {
+      const matchSearch = (p.code && String(p.code).toLowerCase().includes(searchChina)) ||
+                          (p.name && String(p.name).toLowerCase().includes(searchChina)) ||
+                          (p.dept && String(p.dept).toLowerCase().includes(searchChina)) ||
+                          (p.descCn && String(p.descCn).toLowerCase().includes(searchChina)) ||
+                          (p.note && String(p.note).toLowerCase().includes(searchChina));
+      const matchCol = matchColumnFilters(p, 'china');
+      return matchSearch && matchCol;
+    }).forEach((p, idx) => {
+      chinaBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-china" value="${p.id}"></td>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td style="text-align:center;"><b>${p.month || '-'}</b></td>
+          <td>${p.dept || '-'}</td><td>${p.module || '-'}</td><td>${p.costCenter || '-'}</td>
+          <td><b>${p.code || '-'}</b></td><td>${p.group || '-'}</td><td>${p.name || '-'}</td>
+          <td>${p.descCn || '-'}</td><td style="text-align:center;">${p.unit || '-'}</td>
+          <td style="text-align:center;"><b>${p.qty || 0}</b></td>
+          <td style="text-align:right;">${Number(p.price || 0).toLocaleString()}</td>
+          <td style="text-align:right;"><b>${Number(p.totalPrice || 0).toLocaleString()}</b></td>
+          <td>${p.note || '-'}</td>
+          <td style="text-align:center;"><span class="badge ${p.arrived ? 'badge-ok' : 'badge-pending'}" onclick="toggleArrival('china', ${p.id})">${p.arrived ? '✅ Đã về / 已到货' : '⏳ Chưa về / 未到货'}</span></td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-secondary" onclick="openEditPurchaseModal('china', ${p.id})">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deletePurchase('china', ${p.id})">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // 3. RENDER ĐƠN MUA VIỆT NAM
+    const searchVn = (document.getElementById('searchVietnam')?.value || '').toLowerCase();
+    const vnBody = document.getElementById('vietnamPurchaseBody');
+    vnBody.innerHTML = '';
+    vietnamPurchases.filter(p => {
+      const matchSearch = (p.code && String(p.code).toLowerCase().includes(searchVn)) ||
+                          (p.descVnCn && String(p.descVnCn).toLowerCase().includes(searchVn)) ||
+                          (p.dept && String(p.dept).toLowerCase().includes(searchVn)) ||
+                          (p.keeper && String(p.keeper).toLowerCase().includes(searchVn)) ||
+                          (p.category && String(p.category).toLowerCase().includes(searchVn));
+      const matchCol = matchColumnFilters(p, 'vietnam');
+      return matchSearch && matchCol;
+    }).forEach((p, idx) => {
+      vnBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-vietnam" value="${p.id}"></td>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td style="text-align:center;"><b>${p.month || '-'}</b></td>
+          <td>${p.category || '-'}</td><td>${p.dept || '-'}</td>
+          <td><b>${p.code || '-'}</b></td><td>${p.descVnCn || '-'}</td>
+          <td style="text-align:center;"><b>${p.qty || 0}</b></td><td style="text-align:center;">${p.unit || '-'}</td>
+          <td style="text-align:right;">${Number(p.price || 0).toLocaleString()} đ</td>
+          <td style="text-align:right;"><b>${Number(p.totalPrice || 0).toLocaleString()} đ</b></td>
+          <td>${p.usage || '-'}</td><td>${p.keeper || '-'}</td>
+          <td style="text-align:center;"><span class="badge ${p.arrived ? 'badge-ok' : 'badge-pending'}" onclick="toggleArrival('vietnam', ${p.id})">${p.arrived ? '✅ Đã về / 已到货' : '⏳ Chưa về / 未到货'}</span></td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-secondary" onclick="openEditPurchaseModal('vietnam', ${p.id})">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deletePurchase('vietnam', ${p.id})">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // 4. RENDER PHỤ KIỆN NG
+    const searchNG = (document.getElementById('searchNG')?.value || '').toLowerCase();
+    const ngBody = document.getElementById('ngBody');
+    ngBody.innerHTML = '';
+    ngList.filter(item => {
+      const matchSearch = (item.code && String(item.code).toLowerCase().includes(searchNG)) ||
+                          (item.name && String(item.name).toLowerCase().includes(searchNG)) ||
+                          (item.reason && String(item.reason).toLowerCase().includes(searchNG)) ||
+                          (item.user && String(item.user).toLowerCase().includes(searchNG));
+      const matchCol = matchColumnFilters(item, 'ng');
+      return matchSearch && matchCol;
+    }).forEach((item, index) => {
+      ngBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-ng" value="${item.id}"></td>
+          <td style="text-align:center;">${index + 1}</td>
+          <td>${item.time || '-'}</td><td><b>${item.code || '-'}</b></td>
+          <td>${item.name || '-'}</td><td style="text-align:center;"><b style="color:#dc2626;">${item.qty || 0}</b></td>
+          <td>${item.reason || '-'}</td><td>${item.user || '-'}</td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-secondary" onclick="openEditNGModal(${item.id})">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deleteNG(${item.id})">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // 5. RENDER NHẬT KÝ XUẤT NHẬP
+    const searchLogs = (document.getElementById('searchLogs')?.value || '').toLowerCase();
+    const logsBody = document.getElementById('logsBody');
+    logsBody.innerHTML = '';
+    logs.filter(log => {
+      const matchSearch = (log.type && String(log.type).toLowerCase().includes(searchLogs)) ||
+                          (log.code && String(log.code).toLowerCase().includes(searchLogs)) ||
+                          (log.name && String(log.name).toLowerCase().includes(searchLogs)) ||
+                          (log.note && String(log.note).toLowerCase().includes(searchLogs));
+      const matchCol = matchColumnFilters(log, 'logs');
+      return matchSearch && matchCol;
+    }).forEach((log, index) => {
+      const logId = log.id || log.time + index;
+      logsBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-logs" value="${logId}"></td>
+          <td style="text-align:center;">${index + 1}</td>
+          <td>${log.time || '-'}</td><td><b>${log.type || '-'}</b></td>
+          <td>${log.code || '-'}</td><td>${log.name || '-'}</td>
+          <td style="text-align:center;"><b>${log.change || 0}</b></td>
+          <td style="text-align:center;">${log.afterStock || 0}</td>
+          <td>${log.note || '-'}</td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-secondary" onclick="openEditLogModal('${logId}')">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deleteLog('${logId}')">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // 6. RENDER LỊCH SỬ LĨNH ĐỒ VĂN THƯ
+    const searchAdmin = (document.getElementById('searchAdminReceive')?.value || '').toLowerCase();
+    const adminRecBody = document.getElementById('adminReceiveBody');
+    adminRecBody.innerHTML = '';
+    adminReceives.filter(item => {
+      const matchSearch = (item.itemName && String(item.itemName).toLowerCase().includes(searchAdmin)) ||
+                          (item.dept && String(item.dept).toLowerCase().includes(searchAdmin)) ||
+                          (item.receiver && String(item.receiver).toLowerCase().includes(searchAdmin)) ||
+                          (item.giver && String(item.giver).toLowerCase().includes(searchAdmin)) ||
+                          (item.note && String(item.note).toLowerCase().includes(searchAdmin));
+      const matchCol = matchColumnFilters(item, 'adminReceive');
+      return matchSearch && matchCol;
+    }).forEach((item, index) => {
+      adminRecBody.innerHTML += `
+        <tr>
+          <td style="text-align: center;"><input type="checkbox" class="row-checkbox-adminReceive" value="${item.id}"></td>
+          <td style="text-align:center;">${index + 1}</td>
+          <td style="text-align:center;">${item.time || '-'}</td>
+          <td><b>${item.itemName || '-'}</b></td>
+          <td style="text-align:center;"><b>${item.qty || 0}</b></td>
+          <td style="text-align:center;">${item.unit || '-'}</td>
+          <td>${item.dept || '-'}</td><td>${item.receiver || '-'}</td><td>${item.giver || '-'}</td>
+          <td>${item.note || '-'}</td>
+          <td style="white-space:nowrap; text-align:center;">
+            <button class="btn btn-secondary" onclick="editAdminReceive(${item.id})">修改 / Sửa</button>
+            <button class="btn btn-danger" onclick="deleteAdminReceive(${item.id})">删除 / Xóa</button>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  // CÁC HÀM XỬ LÝ NHẬT KÝ (LOGS)
+  function openAddLogModal() {
+    document.getElementById('logId').value = '';
+    document.getElementById('logModalTitle').innerText = 'Thêm Nhật Ký Xuất/Nhập / 新增出入库日志';
+    document.getElementById('logTime').value = '';
+    document.getElementById('logType').value = 'Nhập kho / 入库';
+    document.getElementById('logCode').value = '';
+    document.getElementById('logName').value = '';
+    document.getElementById('logChange').value = '1';
+    document.getElementById('logAfterStock').value = '0';
+    document.getElementById('logNote').value = '';
+    document.getElementById('logModal').classList.add('active');
+  }
+
+  function openEditLogModal(id) {
+    const log = logs.find(l => String(l.id || l.time) === String(id));
+    if (!log) return;
+    document.getElementById('logId').value = id;
+    document.getElementById('logModalTitle').innerText = 'Sửa Nhật Ký Xuất/Nhập / 修改出入库日志';
+    document.getElementById('logTime').value = log.time || '';
+    document.getElementById('logType').value = log.type || 'Nhập kho / 入库';
+    document.getElementById('logCode').value = log.code || '';
+    document.getElementById('logName').value = log.name || '';
+    document.getElementById('logChange').value = log.change || 0;
+    document.getElementById('logAfterStock').value = log.afterStock || 0;
+    document.getElementById('logNote').value = log.note || '';
+    document.getElementById('logModal').classList.add('active');
+  }
+
+  function saveLog(e) {
+    e.preventDefault();
+    const id = document.getElementById('logId').value;
+    let rawTime = document.getElementById('logTime').value.trim();
+    let timeVal = rawTime !== "" ? rawTime : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    const type = document.getElementById('logType').value;
+    const code = document.getElementById('logCode').value.trim();
+    const name = document.getElementById('logName').value.trim();
+    const change = parseInt(document.getElementById('logChange').value) || 0;
+    const afterStock = parseInt(document.getElementById('logAfterStock').value) || 0;
+    const note = document.getElementById('logNote').value.trim();
+
+    if (!name) { alert('Vui lòng nhập tên phụ kiện!'); return; }
+
+    if (id) {
+      const log = logs.find(l => String(l.id || l.time) === String(id));
+      if (log) Object.assign(log, { time: timeVal, type, code: code || '-', name, change, afterStock, note });
+    } else {
+      logs.unshift({ id: Date.now(), time: timeVal, type, code: code || '-', name, change, afterStock, note });
+    }
+
+    saveData();
+    renderTables();
+    closeModal('logModal');
+  }
+
+  function openAddModal() {
+    document.getElementById('itemId').value = '';
+    document.getElementById('modalTitle').innerText = 'Thêm Phụ Kiện SMT Mới / 添加新备件';
+    document.getElementById('itemCode').value = '';
+    document.getElementById('supplierCode').value = '';
+    document.getElementById('itemSmtDip').value = 'SMT';
+    document.getElementById('itemCategory').value = '';
+    document.getElementById('itemDevice').value = '';
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemStock').value = '0';
+    document.getElementById('itemMinStock').value = '5';
+    document.getElementById('itemLocation').value = '';
+    document.getElementById('itemModal').classList.add('active');
+  }
+
+  function editItem(id) {
+    const item = inventory.find(i => String(i.id) === String(id));
+    if (!item) return;
+    document.getElementById('itemId').value = item.id;
+    document.getElementById('modalTitle').innerText = 'Sửa Phụ Kiện SMT / 修改备件';
+    document.getElementById('itemCode').value = item.code || '';
+    document.getElementById('supplierCode').value = item.supplierCode || '';
+    document.getElementById('itemSmtDip').value = item.smtDip || 'SMT';
+    document.getElementById('itemCategory').value = item.category || '';
+    document.getElementById('itemDevice').value = item.device || '';
+    document.getElementById('itemName').value = item.name || '';
+    document.getElementById('itemStock').value = item.stock || 0;
+    document.getElementById('itemMinStock').value = item.minStock || 5;
+    document.getElementById('itemLocation').value = item.location || '';
+    document.getElementById('itemModal').classList.add('active');
+  }
+
+  function saveItem(e) {
+    e.preventDefault();
+    const id = document.getElementById('itemId').value;
+    const code = document.getElementById('itemCode').value.trim();
+    const supplierCode = document.getElementById('supplierCode').value.trim();
+    const smtDip = document.getElementById('itemSmtDip').value.trim();
+    const category = document.getElementById('itemCategory').value.trim();
+    const device = document.getElementById('itemDevice').value.trim();
+    const name = document.getElementById('itemName').value.trim();
+    const stock = parseInt(document.getElementById('itemStock').value) || 0;
+    const minStock = parseInt(document.getElementById('itemMinStock').value) || 0;
+    const location = document.getElementById('itemLocation').value.trim();
+
+    if (!name) { alert('Vui lòng nhập tên phụ kiện!'); return; }
+
+    if (id) {
+      const item = inventory.find(i => String(i.id) === String(id));
+      if (item) Object.assign(item, { code, supplierCode, smtDip, category, device, name, stock, minStock, location });
+    } else {
+      inventory.unshift({ id: Date.now(), code, supplierCode, smtDip, category, device, name, stock, minStock, location });
+    }
+
+    saveData();
+    renderTables();
+    closeModal('itemModal');
+  }
+
+  function openAddPurchaseModal(type) {
+    document.getElementById('pType').value = type;
+    document.getElementById('pId').value = '';
+    const title = type === 'china' ? 'Thêm Đơn Mua Trung Quốc / 新增中国采购订单' : 'Thêm Đơn Mua Việt Nam / 新增越南采购订单';
+    document.getElementById('purchaseModalTitle').innerText = title;
+    
+    const grid = document.getElementById('purchaseFormGrid');
+    const currentMonth = new Date().toISOString().slice(0, 7);
+
+    if (type === 'china') {
+      grid.innerHTML = `
+        <div class="form-group"><label>Tháng Mua / 采购月份</label><input type="text" id="pMonth" value="${currentMonth}"></div>
+        <div class="form-group"><label>Bộ Phận / 部门</label><input type="text" id="pDept" value="SMT"></div>
+        <div class="form-group"><label>Module / 模块</label><input type="text" id="pModule" placeholder="Module..."></div>
+        <div class="form-group"><label>Mã Chi Phí / 成本中心</label><input type="text" id="pCostCenter" placeholder="Cost Center..."></div>
+        <div class="form-group"><label>Mã Vật Liệu / 物料编码</label><input type="text" id="pCode" placeholder="Mã vật liệu..."></div>
+        <div class="form-group"><label>Tổ Mua Hàng / 采购组</label><input type="text" id="pGroup" placeholder="Tổ mua hàng..."></div>
+        <div class="form-group"><label class="required-label">Tên Phụ Kiện / 品名</label><input type="text" id="pName" required placeholder="Tên phụ kiện..."></div>
+        <div class="form-group"><label>Mô Tả Tiếng Trung / 物料描述</label><input type="text" id="pDescCn" placeholder="Mô tả..."></div>
+        <div class="form-group"><label>Đơn Vị / 单位</label><input type="text" id="pUnit" value="Cái / 个"></div>
+        <div class="form-group"><label>Số Lượng / 数量</label><input type="number" id="pQty" min="1" value="1"></div>
+        <div class="form-group"><label>Đơn Giá / 预算单价</label><input type="number" id="pPrice" min="0" value="0"></div>
+        <div class="form-group"><label>Ghi Chú / 备注</label><input type="text" id="pNote" placeholder="Ghi chú..."></div>
+      `;
+    } else {
+      grid.innerHTML = `
+        <div class="form-group"><label>Tháng Mua / 采购月份</label><input type="text" id="pMonth" value="${currentMonth}"></div>
+        <div class="form-group"><label>Phân Loại / 类别</label><input type="text" id="pCategory" placeholder="Phân loại..."></div>
+        <div class="form-group"><label>Tên Bộ Phận / 需求部门</label><input type="text" id="pDept" value="SMT"></div>
+        <div class="form-group"><label>Mã Vật Liệu / 物料编码</label><input type="text" id="pCode" placeholder="Mã vật liệu..."></div>
+        <div class="form-group full-width"><label class="required-label">Mô Tả Trung - Việt / 物料描述</label><input type="text" id="pDescVnCn" required placeholder="Mô tả..."></div>
+        <div class="form-group"><label>Số Lượng / 数量</label><input type="number" id="pQty" min="1" value="1"></div>
+        <div class="form-group"><label>Đơn Vị / 单位</label><input type="text" id="pUnit" value="Cái"></div>
+        <div class="form-group"><label>Đơn Giá Dự Toán (VND)</label><input type="number" id="pPrice" min="0" value="0"></div>
+        <div class="form-group"><label>Khía Cạnh Sử Dụng / 使用场景</label><input type="text" id="pUsage" placeholder="Sử dụng cho..."></div>
+        <div class="form-group full-width"><label>Người Quản Lý / 保管人</label><input type="text" id="pKeeper" placeholder="Tên người quản lý..."></div>
+      `;
+    }
+    document.getElementById('purchaseModal').classList.add('active');
+  }
+
+  function openEditPurchaseModal(type, id) {
+    const list = type === 'china' ? chinaPurchases : vietnamPurchases;
+    const item = list.find(i => String(i.id) === String(id));
+    if (!item) return;
+
+    openAddPurchaseModal(type);
+    document.getElementById('pId').value = item.id;
+    document.getElementById('purchaseModalTitle').innerText = type === 'china' ? 'Sửa Đơn Mua Trung Quốc / 修改中国采购订单' : 'Sửa Đơn Mua Việt Nam / 修改越南采购订单';
+
+    document.getElementById('pMonth').value = item.month || '';
+    document.getElementById('pDept').value = item.dept || '';
+    document.getElementById('pQty').value = item.qty || 1;
+    document.getElementById('pUnit').value = item.unit || '';
+    document.getElementById('pPrice').value = item.price || 0;
+
+    if (type === 'china') {
+      document.getElementById('pModule').value = item.module || '';
+      document.getElementById('pCostCenter').value = item.costCenter || '';
+      document.getElementById('pCode').value = item.code || '';
+      document.getElementById('pGroup').value = item.group || '';
+      document.getElementById('pName').value = item.name || '';
+      document.getElementById('pDescCn').value = item.descCn || '';
+      document.getElementById('pNote').value = item.note || '';
+    } else {
+      document.getElementById('pCategory').value = item.category || '';
+      document.getElementById('pCode').value = item.code || '';
+      document.getElementById('pDescVnCn').value = item.descVnCn || '';
+      document.getElementById('pUsage').value = item.usage || '';
+      document.getElementById('pKeeper').value = item.keeper || '';
+    }
+  }
+
+  function savePurchaseItem(e) {
+    e.preventDefault();
+    const type = document.getElementById('pType').value;
+    const id = document.getElementById('pId').value;
+    const month = document.getElementById('pMonth').value.trim();
+    const dept = document.getElementById('pDept').value.trim();
+    const qty = parseInt(document.getElementById('pQty').value) || 0;
+    const unit = document.getElementById('pUnit').value.trim();
+    const price = parseFloat(document.getElementById('pPrice').value) || 0;
+    const totalPrice = qty * price;
+
+    if (type === 'china') {
+      const name = document.getElementById('pName').value.trim();
+      if (!name) { alert('Vui lòng nhập tên phụ kiện!'); return; }
+      const module = document.getElementById('pModule').value.trim();
+      const costCenter = document.getElementById('pCostCenter').value.trim();
+      const code = document.getElementById('pCode').value.trim();
+      const group = document.getElementById('pGroup').value.trim();
+      const descCn = document.getElementById('pDescCn').value.trim();
+      const note = document.getElementById('pNote').value.trim();
+
+      if (id) {
+        let item = chinaPurchases.find(i => String(i.id) === String(id));
+        if (item) Object.assign(item, { month, dept, module, costCenter, code, group, name, descCn, unit, qty, price, totalPrice, note });
+      } else {
+        chinaPurchases.unshift({ id: Date.now(), month, dept, module, costCenter, code, group, name, descCn, unit, qty, price, totalPrice, note, arrived: false });
+      }
+    } else {
+      const descVnCn = document.getElementById('pDescVnCn').value.trim();
+      if (!descVnCn) { alert('Vui lòng nhập mô tả vật liệu!'); return; }
+      const category = document.getElementById('pCategory').value.trim();
+      const code = document.getElementById('pCode').value.trim();
+      const usage = document.getElementById('pUsage').value.trim();
+      const keeper = document.getElementById('pKeeper').value.trim();
+
+      if (id) {
+        let item = vietnamPurchases.find(i => String(i.id) === String(id));
+        if (item) Object.assign(item, { month, category, dept, code, descVnCn, qty, unit, price, totalPrice, usage, keeper });
+      } else {
+        vietnamPurchases.unshift({ id: Date.now(), month, category, dept, code, descVnCn, qty, unit, price, totalPrice, usage, keeper, arrived: false });
+      }
+    }
+
+    saveData();
+    renderTables();
+    closeModal('purchaseModal');
+  }
+
+  function toggleArrival(type, id) {
+    const list = type === 'china' ? chinaPurchases : vietnamPurchases;
+    let item = list.find(i => String(i.id) === String(id));
+    if (item) {
+      item.arrived = !item.arrived;
+      saveData();
+      renderTables();
+    }
+  }
+
+  function openExportModal(id) {
+    const item = inventory.find(i => String(i.id) === String(id));
+    if (!item) return;
+    document.getElementById('exportItemId').value = item.id;
+    document.getElementById('exportItemName').value = item.name;
+    document.getElementById('exportCurrentStock').value = item.stock;
+    document.getElementById('exportQty').value = 1;
+    document.getElementById('exportNote').value = '';
+    document.getElementById('exportModal').classList.add('active');
+  }
+
+  function confirmExport(e) {
+    e.preventDefault();
+    const id = document.getElementById('exportItemId').value;
+    const qty = parseInt(document.getElementById('exportQty').value);
+    const note = document.getElementById('exportNote').value;
+    const item = inventory.find(i => String(i.id) === String(id));
+    if (!item) return;
+
+    if (qty > item.stock) {
+      alert('Số lượng xuất vượt quá tồn kho hiện tại! / 出库数量大于当前库存！');
+      return;
+    }
+
+    item.stock -= qty;
+    logs.unshift({
+      id: Date.now(),
+      time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      type: 'Xuất kho / 出库',
+      code: item.code || '-',
+      name: item.name,
+      change: -qty,
+      afterStock: item.stock,
+      note: note || 'Xuất dùng sản xuất'
+    });
+
+    saveData();
+    renderTables();
+    closeModal('exportModal');
+  }
+
+  function openNGFromInventory(id) {
+    const item = inventory.find(i => String(i.id) === String(id));
+    if (!item) return;
+    document.getElementById('ngId').value = '';
+    document.getElementById('ngItemId').value = item.id;
+    document.getElementById('ngCode').value = item.code || '';
+    document.getElementById('ngName').value = item.name || '';
+    document.getElementById('ngQty').value = 1;
+    document.getElementById('ngUser').value = '';
+    document.getElementById('ngReason').value = '';
+    document.getElementById('ngModalTitle').innerText = 'Thêm Phụ Kiện NG / Báo Phế (添加报废备件)';
+    document.getElementById('ngModal').classList.add('active');
+  }
+
+  function openNGDirectModal() {
+    document.getElementById('ngId').value = '';
+    document.getElementById('ngItemId').value = '';
+    document.getElementById('ngCode').value = '';
+    document.getElementById('ngName').value = '';
+    document.getElementById('ngQty').value = 1;
+    document.getElementById('ngUser').value = '';
+    document.getElementById('ngReason').value = '';
+    document.getElementById('ngModalTitle').innerText = 'Thêm Phụ Kiện NG / Báo Phế (添加报废备件)';
+    document.getElementById('ngModal').classList.add('active');
+  }
+
+  function openEditNGModal(id) {
+    const item = ngList.find(i => String(i.id) === String(id));
+    if (!item) return;
+    document.getElementById('ngId').value = item.id;
+    document.getElementById('ngItemId').value = '';
+    document.getElementById('ngCode').value = item.code || '';
+    document.getElementById('ngName').value = item.name || '';
+    document.getElementById('ngQty').value = item.qty || 1;
+    document.getElementById('ngUser').value = item.user || '';
+    document.getElementById('ngReason').value = item.reason || '';
+    document.getElementById('ngModalTitle').innerText = 'Sửa Phụ Kiện NG / 修改报废备件';
+    document.getElementById('ngModal').classList.add('active');
+  }
+
+  function confirmNGDirect(e) {
+    e.preventDefault();
+    const id = document.getElementById('ngId').value;
+    const itemId = document.getElementById('ngItemId').value;
+    const code = document.getElementById('ngCode').value;
+    const name = document.getElementById('ngName').value;
+    const qty = parseInt(document.getElementById('ngQty').value) || 1;
+    const user = document.getElementById('ngUser').value;
+    const reason = document.getElementById('ngReason').value;
+
+    if (id) {
+      let ngItem = ngList.find(i => String(i.id) === String(id));
+      if (ngItem) Object.assign(ngItem, { code: code || '-', name, qty, user, reason });
+    } else {
+      if (itemId) {
+        const item = inventory.find(i => String(i.id) === String(itemId));
+        if (item) {
+          if (qty > item.stock) {
+            alert('Số lượng báo phế vượt quá tồn kho! / 报废数量大于当前库存！');
+            return;
+          }
+          item.stock -= qty;
+          logs.unshift({
+            id: Date.now(),
+            time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            type: 'Báo Phế / 报废',
+            code: item.code || '-',
+            name: item.name,
+            change: -qty,
+            afterStock: item.stock,
+            note: `Lý do: ${reason} (Người: ${user})`
+          });
+        }
+      }
+
+      ngList.unshift({
+        id: Date.now(),
+        time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        code: code || '-',
+        name, qty, reason, user
+      });
+    }
+
+    saveData();
+    renderTables();
+    closeModal('ngModal');
+  }
+
+  function saveAdminReceive(e) {
+    e.preventDefault();
+    const id = document.getElementById('adminRecId').value;
+    let rawTime = document.getElementById('adminRecTime').value.trim();
+    let timeVal = rawTime !== "" ? rawTime : new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+    const itemName = document.getElementById('adminRecItemName').value;
+    const qty = parseInt(document.getElementById('adminRecQty').value) || 1;
+    const unit = document.getElementById('adminRecUnit').value;
+    const dept = document.getElementById('adminRecDept').value;
+    const receiver = document.getElementById('adminRecReceiver').value;
+    const giver = document.getElementById('adminRecGiver').value;
+    const note = document.getElementById('adminRecNote').value;
+
+    if (id) {
+      let item = adminReceives.find(i => String(i.id) === String(id));
+      if (item) Object.assign(item, { time: timeVal, itemName, qty, unit, dept, receiver, giver, note });
+    } else {
+      adminReceives.unshift({ id: Date.now(), time: timeVal, itemName, qty, unit, dept, receiver, giver, note });
+    }
+    saveData();
+    renderTables();
+    closeModal('adminReceiveModal');
+  }
+
+  function editAdminReceive(id) {
+    const item = adminReceives.find(i => String(i.id) === String(id));
+    if (!item) return;
+    document.getElementById('adminRecId').value = item.id;
+    document.getElementById('adminRecTime').value = item.time || '';
+    document.getElementById('adminRecItemName').value = item.itemName || '';
+    document.getElementById('adminRecQty').value = item.qty || 1;
+    document.getElementById('adminRecUnit').value = item.unit || '';
+    document.getElementById('adminRecDept').value = item.dept || '';
+    document.getElementById('adminRecReceiver').value = item.receiver || '';
+    document.getElementById('adminRecGiver').value = item.giver || '';
+    document.getElementById('adminRecNote').value = item.note || '';
+    document.getElementById('adminReceiveModal').classList.add('active');
+  }
+
+  function openAdminReceiveModal() {
+    document.getElementById('adminRecId').value = '';
+    document.getElementById('adminRecTime').value = '';
+    document.getElementById('adminRecItemName').value = '';
+    document.getElementById('adminRecQty').value = 1;
+    document.getElementById('adminRecUnit').value = 'Cái / Hộp / Ram';
+    document.getElementById('adminRecDept').value = '';
+    document.getElementById('adminRecReceiver').value = '';
+    document.getElementById('adminRecGiver').value = '';
+    document.getElementById('adminRecNote').value = '';
+    document.getElementById('adminReceiveModal').classList.add('active');
+  }
+
+  function exportTableToExcel(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const wb = XLSX.utils.table_to_book(table, { raw: true });
+    XLSX.writeFile(wb, filename);
+  }
+
+  function importExcelInventory(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        let newItems = [];
+        for (let i = 1; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0) continue;
+          const nameVal = row[6] ? String(row[6]).trim() : (row[5] ? String(row[5]).trim() : '');
+          if (!nameVal) continue; 
+          newItems.push({
+            id: Date.now() + i,
+            code: row[2] ? String(row[2]).trim() : '',
+            supplierCode: row[3] ? String(row[3]).trim() : '',
+            smtDip: row[4] ? String(row[4]).trim() : 'SMT',
+            category: row[5] ? String(row[5]).trim() : '',
+            name: nameVal,
+            device: row[7] ? String(row[7]).trim() : '',
+            stock: parseInt(row[8]) || 0,
+            minStock: parseInt(row[9]) || 5,
+            location: row[10] ? String(row[10]).trim() : ''
+          });
+        }
+        inventory = [...newItems, ...inventory];
+        saveData();
+        renderTables();
+        alert('Nhập và gộp file Excel kho phụ kiện thành công! / 导入并追加成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function importExcelPurchase(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (type === 'china') {
+          let newChina = [];
+          for (let i = 1; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || row.length === 0 || !row[8]) continue;
+            const qty = parseInt(row[11]) || 1;
+            const price = parseFloat(row[12]) || 0;
+            newChina.push({
+              id: Date.now() + i,
+              month: row[2] ? String(row[2]).trim() : '',
+              dept: row[3] ? String(row[3]).trim() : '',
+              module: row[4] ? String(row[4]).trim() : '',
+              costCenter: row[5] ? String(row[5]).trim() : '',
+              code: row[6] ? String(row[6]).trim() : '',
+              group: row[7] ? String(row[7]).trim() : '',
+              name: row[8] ? String(row[8]).trim() : '',
+              descCn: row[9] ? String(row[9]).trim() : '',
+              unit: row[10] ? String(row[10]).trim() : '',
+              qty, price, totalPrice: qty * price,
+              note: row[14] ? String(row[14]).trim() : '',
+              arrived: false
+            });
+          }
+          chinaPurchases = [...newChina, ...chinaPurchases];
+        } else {
+          let newVn = [];
+          for (let i = 1; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || row.length === 0 || !row[5]) continue;
+            const qty = parseInt(row[7]) || 1;
+            const price = parseFloat(row[9]) || 0;
+            newVn.push({
+              id: Date.now() + i,
+              month: row[2] ? String(row[2]).trim() : '',
+              category: row[3] ? String(row[3]).trim() : '',
+              dept: row[4] ? String(row[4]).trim() : '',
+              code: row[5] ? String(row[5]).trim() : '',
+              descVnCn: row[6] ? String(row[6]).trim() : '',
+              qty, unit: row[8] ? String(row[8]).trim() : '',
+              price, totalPrice: qty * price,
+              usage: row[11] ? String(row[11]).trim() : '',
+              keeper: row[12] ? String(row[12]).trim() : '',
+              arrived: false
+            });
+          }
+          vietnamPurchases = [...newVn, ...vietnamPurchases];
+        }
+        saveData();
+        renderTables();
+        alert('Nhập và gộp file Excel đơn mua thành công! / 导入并追加成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function importExcelNG(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let newNG = [];
+        for (let i = 1; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0 || !row[4]) continue;
+          newNG.push({
+            id: Date.now() + i,
+            time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
+            code: row[3] ? String(row[3]).trim() : '-',
+            name: row[4] ? String(row[4]).trim() : '',
+            qty: parseInt(row[5]) || 1,
+            reason: row[6] ? String(row[6]).trim() : '',
+            user: row[7] ? String(row[7]).trim() : ''
+          });
+        }
+        ngList = [...newNG, ...ngList];
+        saveData();
+        renderTables();
+        alert('Nhập và gộp file Excel phụ kiện NG thành công! / 导入并追加成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function importExcelLogs(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let newLogs = [];
+        for (let i = 1; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0 || !row[4]) continue;
+          newLogs.push({
+            id: Date.now() + i,
+            time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
+            type: row[3] ? String(row[3]).trim() : 'Xuất kho',
+            code: row[4] ? String(row[4]).trim() : '-',
+            name: row[5] ? String(row[5]).trim() : '',
+            change: parseInt(row[6]) || 0,
+            afterStock: parseInt(row[7]) || 0,
+            note: row[8] ? String(row[8]).trim() : ''
+          });
+        }
+        logs = [...newLogs, ...logs];
+        saveData();
+        renderTables();
+        alert('Nhập và gộp file Excel nhật ký thành công! / 导入并追加成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function parseExcelDate(val) {
+    if (val === undefined || val === null || val === '') return '';
+    if (typeof val === 'number' || (!isNaN(val) && !String(val).includes('-') && !String(val).includes('/'))) {
+      const num = Number(val);
+      if (num > 30000 && num < 60000) {
+        const utcDays = Math.floor(num - 25569);
+        const dateInfo = new Date(utcDays * 86400 * 1000);
+        if (!isNaN(dateInfo.getTime())) {
+          return `${dateInfo.getUTCFullYear()}-${String(dateInfo.getUTCMonth() + 1).padStart(2, '0')}-${String(dateInfo.getUTCDate()).padStart(2, '0')}`;
+        }
+      }
+    }
+    let str = String(val).trim();
+    if (str.includes('月') && str.includes('日')) {
+      const match = str.match(/(\d+)\s*月\s*(\d+)\s*日/);
+      if (match) return `2026-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+    }
+    return str;
+  }
+
+  function importExcelAdminReceive(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        if (jsonRows.length === 0) return;
+
+        let headerRowIdx = 0;
+        let colMap = { time: -1, itemName: -1, qty: -1, unit: -1, dept: -1, receiver: -1, giver: -1, note: -1 };
+
+        for (let r = 0; r < Math.min(jsonRows.length, 5); r++) {
+          let row = jsonRows[r];
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase();
+            if (txt.includes('thời gian') || txt.includes('时间')) colMap.time = c;
+            if (txt.includes('tên vật tư') || txt.includes('văn phòng phẩm') || txt.includes('物品名称')) colMap.itemName = c;
+            if (txt.includes('số lượng') || txt.includes('数量')) colMap.qty = c;
+            if (txt.includes('đơn vị') || txt.includes('单位')) colMap.unit = c;
+            if (txt.includes('bộ phận') || txt.includes('领用部门')) colMap.dept = c;
+            if (txt.includes('người nhận') || txt.includes('领用人')) colMap.receiver = c;
+            if (txt.includes('người giao') || txt.includes('văn thư') || txt.includes('发货人')) colMap.giver = c;
+            if (txt.includes('ghi chú') || txt.includes('备注')) colMap.note = c;
+          }
+          if (colMap.itemName !== -1 || colMap.qty !== -1) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+
+        let newRec = [];
+        const fallbackMode = (colMap.itemName === -1);
+
+        for (let i = headerRowIdx + 1; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0) continue;
+          let rawTimeVal, itemNameVal, qtyVal, unitVal, deptVal, receiverVal, giverVal, noteVal;
+
+          if (!fallbackMode) {
+            rawTimeVal = colMap.time !== -1 ? row[colMap.time] : '';
+            itemNameVal = colMap.itemName !== -1 ? String(row[colMap.itemName] || '').trim() : '';
+            qtyVal = colMap.qty !== -1 ? parseInt(row[colMap.qty]) || 1 : 1;
+            unitVal = colMap.unit !== -1 ? String(row[colMap.unit] || '').trim() : 'Cái';
+            deptVal = colMap.dept !== -1 ? String(row[colMap.dept] || '').trim() : '';
+            receiverVal = colMap.receiver !== -1 ? String(row[colMap.receiver] || '').trim() : '';
+            giverVal = colMap.giver !== -1 ? String(row[colMap.giver] || '').trim() : '';
+            noteVal = colMap.note !== -1 ? String(row[colMap.note] || '').trim() : '';
+          } else {
+            rawTimeVal = row[2];
+            itemNameVal = row[3] !== undefined ? String(row[3]).trim() : '';
+            qtyVal = parseInt(row[4]) || 1;
+            unitVal = row[5] ? String(row[5]).trim() : 'Cái';
+            deptVal = row[6] ? String(row[6]).trim() : '';
+            receiverVal = row[7] ? String(row[7]).trim() : '';
+            giverVal = row[8] ? String(row[8]).trim() : '';
+            noteVal = row[9] ? String(row[9]).trim() : '';
+          }
+
+          if (!itemNameVal && rawTimeVal === undefined) continue;
+          const timeVal = parseExcelDate(rawTimeVal) || new Date().toISOString().slice(0, 10);
+
+          newRec.push({
+            id: Date.now() + i, time: timeVal, itemName: itemNameVal || 'Chưa rõ tên',
+            qty: isNaN(qtyVal) ? 1 : qtyVal, unit: unitVal || 'Cái', dept: deptVal,
+            receiver: receiverVal, giver: giverVal, note: noteVal
+          });
+        }
+
+        adminReceives = [...newRec, ...adminReceives];
+        saveData();
+        renderTables();
+        alert('Nhập và gộp file Excel lịch sử văn thư thành công! / 导入并追加成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function deleteInventoryItem(id) { if (confirm('Xóa mục này? / 确定删除吗？')) { inventory = inventory.filter(i => String(i.id) !== String(id)); saveData(); renderTables(); } }
+  function deletePurchase(type, id) { if (confirm('Xóa đơn này? / 确定删除吗？')) { if(type==='china') chinaPurchases = chinaPurchases.filter(i=>String(i.id)!==String(id)); else vietnamPurchases = vietnamPurchases.filter(i=>String(i.id)!==String(id)); saveData(); renderTables(); } }
+  function deleteNG(id) { if (confirm('Xóa bản ghi NG này? / 确定删除吗？')) { ngList = ngList.filter(i => String(i.id) !== String(id)); saveData(); renderTables(); } }
+  function deleteLog(id) { if (confirm('Xóa bản ghi nhật ký này? / 确定删除吗？')) { logs = logs.filter(l => String(l.id || l.time) !== String(id)); saveData(); renderTables(); } }
+  function deleteAdminReceive(id) { if (confirm('Xóa bản ghi này? / 确定删除吗？')) { adminReceives = adminReceives.filter(i => String(i.id) !== String(id)); saveData(); renderTables(); } }
+  
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+  window.onload = function() { renderTables(); };
+</script>
+
+</body>
+</html>
