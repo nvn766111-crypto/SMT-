@@ -4,21 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản Lý Kho & Đơn Mua Phụ Kiện SMT / SMT备件管理系统</title>
-  <!-- Thêm thư viện SheetJS để đọc và xuất file Excel (.xlsx) -->
+  <!-- Thư viện SheetJS xuất Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Thư viện Firebase Realtime Database -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
     body { background-color: #f1f5f9; color: #1e293b; padding: 15px; }
     
     .container { width: 98%; max-width: 100%; margin: 0 auto; background: #ffffff; padding: 20px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
     
-    /* CSS cho thanh cảnh báo */
+    /* CSS cho thanh cảnh báo & Trạng thái Sync */
     .alert-banner { display: flex; justify-content: space-around; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 8px; margin-top: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     .alert-item { font-size: 14px; font-weight: 600; color: #1e40af; display: flex; align-items: center; gap: 6px; }
     .alert-item span { font-weight: 700; padding: 2px 8px; border-radius: 6px; }
     .alert-total { background: #dbeafe; color: #1d4ed8; }
     .alert-safe { background: #dcfce7; color: #15803d; }
     .alert-warning { background: #fee2e2; color: #b91c1c; }
+
+    .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 6px 12px; border-radius: 6px; border: 1px solid #86efac; }
+    .sync-dot { height: 9px; width: 9px; background-color: #16a34a; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
     .alert-btn {
       cursor: pointer;
@@ -64,29 +73,26 @@
     .btn-undo { background-color: #7c3aed; color: white; }
     .btn:hover { opacity: 0.9; }
 
-    /* BỔ SUNG & SỬA LỖI TRÔI / DÃN DÒNG CHO BẢNG */
     .table-container { 
       width: 100%; 
       overflow: auto; 
       max-height: 70vh; 
-      min-height: 320px; /* Đảm bảo chiều cao tối thiểu để popup lọc mở thoải mái */
+      min-height: 320px;
       border-radius: 8px; 
       border: 1px solid #cbd5e1; 
       position: relative; 
     }
     table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
     
-    /* Giãn chiều cao dòng cơ bản + tối thiểu để dễ quan sát */
     th, td { 
       border-bottom: 1px solid #cbd5e1; 
       border-right: 1px solid #cbd5e1; 
-      padding: 12px 10px; /* Tăng padding từ 8px lên 12px giúp giãn dòng */
+      padding: 12px 10px; 
       vertical-align: middle; 
-      height: 48px; /* Giữ độ cao tiêu chuẩn đẹp cho dòng */
+      height: 48px; 
     }
     th:first-child, td:first-child { border-left: 1px solid #cbd5e1; }
     
-    /* Cố định tiêu đề (Sticky header) */
     th { 
       background-color: #f1f5f9; 
       color: #1e293b; 
@@ -102,7 +108,6 @@
     tr:nth-child(even) { background-color: #f8fafc; }
     tr:hover { background-color: #f1f5f9; }
     
-    /* CSS cho nút lọc kiểu Excel trên tiêu đề cột */
     .th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
     .filter-icon-btn {
       background: #e2e8f0;
@@ -120,10 +125,9 @@
       border-color: #2563eb;
     }
 
-    /* Popup Lọc cột cố định vị trí đỉnh cao (z-index 9999) */
     .excel-filter-dropdown {
       display: none;
-      position: fixed; /* Dùng fixed để không bị che khuất bởi overflow của bảng */
+      position: fixed;
       background: #ffffff;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
@@ -211,7 +215,9 @@
   <div class="header">
     <h2>📦 Quản Lý Kho & Đơn Mua Phụ Kiện SMT / SMT备件管理系统</h2>
     <div style="display: flex; align-items: center; gap: 12px;">
-      <span style="font-weight: 700; color: #1e40af; font-size: 15px; background: #eff6ff; padding: 6px 12px; border: 1px solid #bfdbfe; border-radius: 6px;">MOKA SMT-TPM</span>
+      <div class="sync-status">
+        <span class="sync-dot"></span> Realtime Sync Online
+      </div>
       <button class="btn btn-undo" onclick="undoAction()" title="Quay lại thao tác trước (Ctrl+Z)">↩️ Hoàn Tác / 撤销 (Ctrl+Z)</button>
     </div>
   </div>
@@ -767,12 +773,50 @@
 </div>
 
 <script>
-  let inventory = JSON.parse(localStorage.getItem('smt_inventory')) || [];
-  let chinaPurchases = JSON.parse(localStorage.getItem('smt_china_purchases')) || [];
-  let vietnamPurchases = JSON.parse(localStorage.getItem('smt_vn_purchases')) || [];
-  let logs = JSON.parse(localStorage.getItem('smt_logs')) || [];
-  let ngList = JSON.parse(localStorage.getItem('smt_ng')) || [];
-  let adminReceives = JSON.parse(localStorage.getItem('smt_admin_receives')) || [];
+  // 1. CẤU HÌNH FIREBASE DỮ LIỆU REALTIME DÙNG CHUNG KHO SMT
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJ-jEaf109L8hzcyyWXA6dB_AQ8A_pK4E",
+    authDomain: "kho-smt.firebaseapp.com",
+    databaseURL: "https://kho-smt-default-rtdb.firebaseio.com",
+    projectId: "kho-smt",
+    storageBucket: "kho-smt.firebasestorage.app",
+    messagingSenderId: "680342474258",
+    appId: "1:680342474258:web:8599ed29706ebeadf752cb",
+    measurementId: "G-G7NRS1Q3VD"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let inventory = [];
+  let chinaPurchases = [];
+  let vietnamPurchases = [];
+  let logs = [];
+  let ngList = [];
+  let adminReceives = [];
+
+  // LẮNG NGHE DỮ LIỆU REALTIME TỪ CLOUD FIREBASE
+  db.ref('smt_master_data').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      inventory = data.inventory || [];
+      chinaPurchases = data.chinaPurchases || [];
+      vietnamPurchases = data.vietnamPurchases || [];
+      logs = data.logs || [];
+      ngList = data.ngList || [];
+      adminReceives = data.adminReceives || [];
+    } else {
+      // Nếu cloud hoàn toàn trống, tự lấy dữ liệu cũ từ localStorage nếu có
+      inventory = JSON.parse(localStorage.getItem('smt_inventory')) || [];
+      chinaPurchases = JSON.parse(localStorage.getItem('smt_china_purchases')) || [];
+      vietnamPurchases = JSON.parse(localStorage.getItem('smt_vn_purchases')) || [];
+      logs = JSON.parse(localStorage.getItem('smt_logs')) || [];
+      ngList = JSON.parse(localStorage.getItem('smt_ng')) || [];
+      adminReceives = JSON.parse(localStorage.getItem('smt_admin_receives')) || [];
+      saveDataToCloudOnly();
+    }
+    renderTables();
+  });
 
   let currentInventoryFilter = 'all';
 
@@ -809,7 +853,7 @@
     ngList = state.ngList;
     adminReceives = state.adminReceives;
 
-    saveDataToStorageOnly();
+    saveDataToCloudOnly();
     renderTables();
     alert('Đã hoàn tác về thao tác trước thành công! / 撤销成功！');
   }
@@ -826,11 +870,21 @@
 
   function saveData() {
     pushHistory();
-    saveDataToStorageOnly();
+    saveDataToCloudOnly();
     updateCategoryFilter();
   }
 
-  function saveDataToStorageOnly() {
+  function saveDataToCloudOnly() {
+    // Lưu tập trung trên Firebase Cloud Realtime
+    db.ref('smt_master_data').set({
+      inventory: inventory,
+      chinaPurchases: chinaPurchases,
+      vietnamPurchases: vietnamPurchases,
+      logs: logs,
+      ngList: ngList,
+      adminReceives: adminReceives
+    });
+    // Lưu sao lưu cục bộ
     localStorage.setItem('smt_inventory', JSON.stringify(inventory));
     localStorage.setItem('smt_china_purchases', JSON.stringify(chinaPurchases));
     localStorage.setItem('smt_vn_purchases', JSON.stringify(vietnamPurchases));
@@ -865,7 +919,7 @@
     renderTables();
   }
 
-  // --- CÁC HÀM XỬ LÝ BỘ LỌC CỘT DÙNG THUỘC TÍNH FIXED ĐỂ KHÔNG BỊ TRÔI / KHUẤT ---
+  // --- CÁC HÀM XỬ LÝ BỘ LỌC CỘT EXCEL ---
   function toggleColumnFilterDropdown(event, tableKey, colKey) {
     event.stopPropagation();
     const btn = event.currentTarget;
@@ -874,12 +928,10 @@
 
     const isAlreadyActive = dropdown.classList.contains('active');
 
-    // Đóng toàn bộ các dropdown đang mở khác
     document.querySelectorAll('.excel-filter-dropdown').forEach(el => el.classList.remove('active'));
 
     if (isAlreadyActive) return;
 
-    // Định vị dropdown ngay phía dưới nút bấm theo tọa độ toàn màn hình
     const rect = btn.getBoundingClientRect();
     dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px';
     dropdown.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
@@ -1019,7 +1071,6 @@
     }
     return true;
   }
-  // --- KẾT THÚC BỘ LỌC CỘT ---
 
   function showSuggestions(inputId, listId) {
     let items = [];
@@ -1326,7 +1377,6 @@
     });
   }
 
-  // CÁC HÀM XỬ LÝ NHẬT KÝ (LOGS)
   function openAddLogModal() {
     document.getElementById('logId').value = '';
     document.getElementById('logModalTitle').innerText = 'Thêm Nhật Ký Xuất/Nhập / 新增出入库日志';
