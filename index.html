@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản Lý Kho & Đơn Mua Phụ Kiện SMT / SMT备件管理系统</title>
-  <!-- Thư viện SheetJS xuất Excel -->
+  <!-- Thư viện SheetJS chuẩn gốc ổn định 100% -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <!-- Thư viện Firebase Realtime Database -->
@@ -12,8 +12,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
   <style>
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-    body { background-color: #f1f5f9; color: #1e293b; padding: 15px; }
+    * { box-sizing: border-box; font-family: 'Times New Roman', Times, serif, sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f1f5f9; color: #1e293b; padding: 15px; font-family: 'Times New Roman', Times, serif; }
     
     .container { width: 98%; max-width: 100%; margin: 0 auto; background: #ffffff; padding: 20px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
     
@@ -59,10 +59,10 @@
     .search-group { display: flex; gap: 12px; flex: 1; min-width: 280px; }
     .action-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     
-    input[type="text"], input[type="number"], select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; width: 100%; }
+    input[type="text"], input[type="number"], select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; width: 100%; font-family: 'Times New Roman', Times, serif; }
     input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
     
-    .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.2s; white-space: nowrap; }
+    .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.2s; white-space: nowrap; font-family: 'Times New Roman', Times, serif; }
     .btn-primary { background-color: #2563eb; color: white; }
     .btn-success { background-color: #059669; color: white; }
     .btn-warning { background-color: #d97706; color: white; }
@@ -81,7 +81,7 @@
       border: 1px solid #cbd5e1; 
       position: relative; 
     }
-    table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; font-family: 'Times New Roman', Times, serif; }
     
     th, td { 
       border-bottom: 1px solid #cbd5e1; 
@@ -93,8 +93,8 @@
     th:first-child, td:first-child { border-left: 1px solid #cbd5e1; }
     
     th { 
-      background-color: #f1f5f9; 
-      color: #1e293b; 
+      background-color: #1e40af; 
+      color: #ffffff; 
       font-weight: 700; 
       white-space: nowrap; 
       text-align: center; 
@@ -1795,11 +1795,108 @@
     document.getElementById('adminReceiveModal').classList.add('active');
   }
 
+  // HÀM XUẤT EXCEL CHUẨN ĐƯỢC CẬP NHẬT: THÊM TIÊU ĐỀ LỚN VÀ TÔ MÀU ĐỀ MỤC, GIỮ NGUYÊN DỮ LIỆU
   function exportTableToExcel(tableId, filename) {
-    const table = document.getElementById(tableId);
-    if (!table) return;
-    const wb = XLSX.utils.table_to_book(table, { raw: true });
-    XLSX.writeFile(wb, filename);
+    const originalTable = document.getElementById(tableId);
+    if (!originalTable) return;
+
+    const tableCloned = originalTable.cloneNode(true);
+    
+    // Loại bỏ checkbox và các nút lọc không cần thiết
+    tableCloned.querySelectorAll('.excel-filter-dropdown, .filter-icon-btn, input[type="checkbox"]').forEach(el => el.remove());
+    
+    const headers = Array.from(tableCloned.querySelectorAll('thead th'));
+    let actionColIdx = -1;
+    let checkColIdx = -1;
+
+    headers.forEach((th, idx) => {
+      const txt = th.innerText.trim();
+      if (txt === '' || txt.includes('Select All')) checkColIdx = idx;
+      if (txt.includes('Thao Tác') || txt.includes('操作')) actionColIdx = idx;
+    });
+
+    const rows = tableCloned.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cells = Array.from(row.children);
+      if (actionColIdx !== -1 && cells[actionColIdx]) cells[actionColIdx].remove();
+      if (checkColIdx !== -1 && cells[checkColIdx]) cells[checkColIdx].remove();
+    });
+
+    tableCloned.querySelectorAll('th').forEach(th => {
+      th.innerText = th.innerText.replace(/▼/g, '').trim();
+    });
+
+    // Xác định tên tiêu đề lớn dựa theo bảng được xuất
+    let reportTitle = "BÁO CÁO QUẢN LÝ KHO SMT / SMT 备件管理报表";
+    let totalCols = tableCloned.querySelectorAll('tr')[0] ? tableCloned.querySelectorAll('tr')[0].children.length : 6;
+
+    if (tableId === 'chinaTable') reportTitle = "ĐƠN MUA HÀNG TRUNG QUỐC / 中国采购清单报表";
+    else if (tableId === 'vietnamTable') reportTitle = "ĐƠN KẾ HOẠCH XIN MUA VIỆT NAM / 越南采购计划报表";
+    else if (tableId === 'ngTable') reportTitle = "QUẢN LÝ PHỤ KIỆN NG / 报废备件管理报表";
+    else if (tableId === 'logsTable') reportTitle = "NHẬT KÝ XUẤT NHẬP KHO / 出入库日志报表";
+    else if (tableId === 'adminReceiveTable') reportTitle = "LỊCH SỬ LĨNH ĐỒ VĂN THƯ / 行政文书领用记录报表";
+
+    // Tạo thêm dòng tiêu đề lớn chèn lên trên cùng của bảng
+    const thead = tableCloned.querySelector('thead');
+    if (thead) {
+      const titleRow = document.createElement('tr');
+      const titleCell = document.createElement('th');
+      titleCell.setAttribute('colspan', totalCols);
+      titleCell.style.cssText = "background-color: #1E40AF; color: #FFFFFF; font-size: 14pt; font-weight: bold; text-align: center; vertical-align: middle; height: 40px;";
+      titleCell.innerText = reportTitle;
+      titleRow.appendChild(titleCell);
+      thead.insertBefore(titleRow, thead.firstChild);
+    }
+
+    // Tạo file Excel chuẩn bằng SheetJS cốt lõi với XML template định dạng bảng, tô màu và cố định tiêu đề
+    const htmlSnippet = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <!--[if gte mso 9]>
+        <xml>
+         <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+           <x:ExcelWorksheet>
+            <x:Name>Sheet1</x:Name>
+            <x:WorksheetOptions>
+             <x:FreezePanes/>
+             <x:FrozenNoSplit/>
+             <x:SplitHorizontal>2</x:SplitHorizontal>
+             <x:TopRowBottomPane>2</x:TopRowBottomPane>
+             <x:SplitVertical>0</x:SplitVertical>
+             <x:LeftColumnRightPane>0</x:LeftColumnRightPane>
+             <x:ActivePane>2</x:ActivePane>
+             <x:Panes>
+              <x:Pane><x:Number>3</x:Number></x:Pane>
+             </x:Panes>
+            </x:WorksheetOptions>
+           </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+         </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          table { border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; }
+          th { background-color: #1E40AF; color: #FFFFFF; font-weight: bold; text-align: center; vertical-align: middle; border: .5pt solid windowtext; padding: 6px; }
+          td { border: .5pt solid windowtext; vertical-align: middle; padding: 5px; }
+        </style>
+      </head>
+      <body>
+        <table>${tableCloned.innerHTML}</table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlSnippet], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace('.xlsx', '.xls');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function importExcelInventory(event) {
