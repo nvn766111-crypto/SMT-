@@ -1357,7 +1357,7 @@
           <td><b>${item.itemName || '-'}</b></td>
           <td style="text-align:center;"><b>${item.qty || 0}</b></td>
           <td style="text-align:center;">${item.unit || '-'}</td>
-          <td>${item.dept || '-'}</td><td>${item.receiver || '-'}</td><td>${item.giver || '-'}</td>
+          <td>${item.dept || '-'}</td><td>${item.receiver || '-'}</td><td><b>${item.giver || '-'}</b></td>
           <td>${item.note || '-'}</td>
           <td style="white-space:nowrap; text-align:center;">
             <button class="btn btn-secondary" onclick="editAdminReceive(${item.id})">修改 / Sửa</button>
@@ -1893,309 +1893,6 @@
     URL.revokeObjectURL(url);
   }
 
-  // --- HÀM NHẬP EXCEL KHO PHỤ KIỆN ĐÃ ĐƯỢC TỐI ƯU HÓA ĐỌC ĐỦ 100% 297 MỤC ---
-  function importExcelInventory(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        let headerRowIdx = -1;
-        let colMap = { 
-          code: 1, 
-          supplierCode: 2, 
-          smtDip: 3, 
-          category: 4, 
-          name: 5, 
-          device: 6, 
-          stock: 7, 
-          minStock: 8, 
-          location: 9 
-        };
-
-        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
-          let row = jsonRows[r];
-          if (!row) continue;
-          
-          let foundHeaderInRow = false;
-          for (let c = 0; c < row.length; c++) {
-            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
-            
-            if (txt.includes('mãmuabán') || txt.includes('物料编码')) { colMap.code = c; foundHeaderInRow = true; }
-            if (txt.includes('măncc') || txt.includes('供应商料号')) { colMap.supplierCode = c; foundHeaderInRow = true; }
-            if (txt.includes('smt/dip')) { colMap.smtDip = c; foundHeaderInRow = true; }
-            if (txt.includes('phânloại') || txt.includes('类别')) { colMap.category = c; foundHeaderInRow = true; }
-            if (txt.includes('tênphụkiện') || txt.includes('备件品名')) { colMap.name = c; foundHeaderInRow = true; }
-            if (txt.includes('thiếtbị') || txt.includes('适用设备')) { colMap.device = c; foundHeaderInRow = true; }
-            
-            if (txt.includes('sốlượng') || txt.includes('库存') || txt.includes('tồnkho')) { 
-              if (!txt.includes('tổitối') && !txt.includes('mứctồn') && !txt.includes('安全')) {
-                colMap.stock = c; 
-                foundHeaderInRow = true; 
-              }
-            }
-            
-            if (txt.includes('tổntốithiểu') || txt.includes('mứctồn') || txt.includes('安全库存') || txt.includes('ngưỡng')) { 
-              colMap.minStock = c; 
-              foundHeaderInRow = true; 
-            }
-            
-            if (txt.includes('vịtrí') || txt.includes('库位')) { colMap.location = c; foundHeaderInRow = true; }
-          }
-          
-          if (foundHeaderInRow) {
-            headerRowIdx = r;
-            break;
-          }
-        }
-
-        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
-        let newItems = [];
-
-        for (let i = startRow; i < jsonRows.length; i++) {
-          const row = jsonRows[i];
-          if (!row || row.length === 0) continue;
-          
-          let nameVal = row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
-          let catVal = row[colMap.category] !== undefined ? String(row[colMap.category]).trim() : '';
-
-          // TỰ ĐỘNG CHUYỂN TÊN TỪ CỘT PHÂN LOẠI NẾU CỘT TÊN PHỤ KIỆN BỊ ĐỂ TRỐNG HOẶC LÀ DẤU "-"
-          if (!nameVal || nameVal === '-' || nameVal.toLowerCase().includes('tên phụ kiện')) {
-            if (catVal && catVal !== '-' && !catVal.toLowerCase().includes('phân loại')) {
-              nameVal = catVal;
-              catVal = 'Khác'; // Đặt phân loại mặc định
-            }
-          }
-          
-          if (!nameVal || nameVal === '-') continue; 
-
-          let rawStock = row[colMap.stock];
-          let parsedStock = (rawStock !== undefined && rawStock !== null && rawStock !== '') ? parseInt(rawStock) : 0;
-          if (isNaN(parsedStock)) parsedStock = 0;
-
-          let rawMinStock = row[colMap.minStock];
-          let parsedMinStock = (rawMinStock !== undefined && rawMinStock !== null && rawMinStock !== '') ? parseInt(rawMinStock) : 5;
-          if (isNaN(parsedMinStock)) parsedMinStock = 5;
-
-          newItems.push({
-            id: Date.now() + i,
-            code: row[colMap.code] !== undefined ? String(row[colMap.code]).trim() : '',
-            supplierCode: row[colMap.supplierCode] !== undefined ? String(row[colMap.supplierCode]).trim() : '',
-            smtDip: row[colMap.smtDip] !== undefined ? String(row[colMap.smtDip]).trim() : 'SMT',
-            category: catVal,
-            name: nameVal,
-            device: row[colMap.device] !== undefined ? String(row[colMap.device]).trim() : '',
-            stock: parsedStock,
-            minStock: parsedMinStock,
-            location: row[colMap.location] !== undefined ? String(row[colMap.location]).trim() : ''
-          });
-        }
-
-        if (newItems.length === 0) {
-          alert('Không tìm thấy dữ liệu hợp lệ trong file Excel!');
-          return;
-        }
-
-        inventory = newItems; // Thay thế hoàn toàn dữ liệu kho mới
-        saveData();
-        renderTables();
-        alert(`Nhập thành công đủ ${newItems.length} mục vào kho! / 成功导入 ${newItems.length} 条数据！`);
-      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
-    };
-    reader.readAsBinaryString(file);
-  }
-
-  function importExcelPurchase(event, type) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        let startRow = 1;
-        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
-          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
-          if (rowStr.includes('tháng') || rowStr.includes('mã') || rowStr.includes('mô tả') || rowStr.includes('月份')) {
-            startRow = i + 1;
-            break;
-          }
-        }
-
-        if (type === 'china') {
-          let newChina = [];
-          for (let i = startRow; i < jsonRows.length; i++) {
-            const row = jsonRows[i];
-            if (!row || row.length === 0) continue;
-            let nameVal = row[8] !== undefined ? String(row[8]).trim() : '';
-            if (!nameVal) {
-              for (let c = 0; c < row.length; c++) {
-                let val = String(row[c] || '').trim();
-                if (val && c > 5 && isNaN(val)) { nameVal = val; break; }
-              }
-            }
-            if (!nameVal) continue;
-
-            const qty = parseInt(row[11]) || 1;
-            const price = parseFloat(row[12]) || 0;
-            newChina.push({
-              id: Date.now() + i,
-              month: row[2] ? String(row[2]).trim() : '',
-              dept: row[3] ? String(row[3]).trim() : '',
-              module: row[4] ? String(row[4]).trim() : '',
-              costCenter: row[5] ? String(row[5]).trim() : '',
-              code: row[6] ? String(row[6]).trim() : '',
-              group: row[7] ? String(row[7]).trim() : '',
-              name: nameVal,
-              descCn: row[9] ? String(row[9]).trim() : '',
-              unit: row[10] ? String(row[10]).trim() : '',
-              qty, price, totalPrice: qty * price,
-              note: row[14] ? String(row[14]).trim() : '',
-              arrived: false
-            });
-          }
-          chinaPurchases = [...newChina, ...chinaPurchases];
-        } else {
-          let newVn = [];
-          for (let i = startRow; i < jsonRows.length; i++) {
-            const row = jsonRows[i];
-            if (!row || row.length === 0) continue;
-            let descVal = row[6] !== undefined ? String(row[6]).trim() : '';
-            if (!descVal) {
-              for (let c = 0; c < row.length; c++) {
-                let val = String(row[c] || '').trim();
-                if (val && c > 3 && isNaN(val)) { descVal = val; break; }
-              }
-            }
-            if (!descVal) continue;
-
-            const qty = parseInt(row[7]) || 1;
-            const price = parseFloat(row[9]) || 0;
-            newVn.push({
-              id: Date.now() + i,
-              month: row[2] ? String(row[2]).trim() : '',
-              category: row[3] ? String(row[3]).trim() : '',
-              dept: row[4] ? String(row[4]).trim() : '',
-              code: row[5] ? String(row[5]).trim() : '',
-              descVnCn: descVal,
-              qty, unit: row[8] ? String(row[8]).trim() : '',
-              price, totalPrice: qty * price,
-              usage: row[11] ? String(row[11]).trim() : '',
-              keeper: row[12] ? String(row[12]).trim() : '',
-              arrived: false
-            });
-          }
-          vietnamPurchases = [...newVn, ...vietnamPurchases];
-        }
-        saveData();
-        renderTables();
-        alert('Nhập và gộp file Excel đơn mua thành công! / 导入并追加成功！');
-      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
-    };
-    reader.readAsBinaryString(file);
-  }
-
-  function importExcelNG(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        let startRow = 1;
-        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
-          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
-          if (rowStr.includes('thời gian') || rowStr.includes('tên') || rowStr.includes('时间')) {
-            startRow = i + 1;
-            break;
-          }
-        }
-
-        let newNG = [];
-        for (let i = startRow; i < jsonRows.length; i++) {
-          const row = jsonRows[i];
-          if (!row || row.length === 0) continue;
-          let nameVal = row[4] !== undefined ? String(row[4]).trim() : '';
-          if (!nameVal) continue;
-
-          newNG.push({
-            id: Date.now() + i,
-            time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
-            code: row[3] ? String(row[3]).trim() : '-',
-            name: nameVal,
-            qty: parseInt(row[5]) || 1,
-            reason: row[6] ? String(row[6]).trim() : '',
-            user: row[7] ? String(row[7]).trim() : ''
-          });
-        }
-        ngList = [...newNG, ...ngList];
-        saveData();
-        renderTables();
-        alert('Nhập và gộp file Excel phụ kiện NG thành công! / 导入并追加成功！');
-      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
-    };
-    reader.readAsBinaryString(file);
-  }
-
-  function importExcelLogs(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        let startRow = 1;
-        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
-          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
-          if (rowStr.includes('thời gian') || rowStr.includes('loại') || rowStr.includes('时间')) {
-            startRow = i + 1;
-            break;
-          }
-        }
-
-        let newLogs = [];
-        for (let i = startRow; i < jsonRows.length; i++) {
-          const row = jsonRows[i];
-          if (!row || row.length === 0) continue;
-          let nameVal = row[5] !== undefined ? String(row[5]).trim() : '';
-          if (!nameVal) continue;
-
-          newLogs.push({
-            id: Date.now() + i,
-            time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
-            type: row[3] ? String(row[3]).trim() : 'Xuất kho',
-            code: row[4] ? String(row[4]).trim() : '-',
-            name: nameVal,
-            change: parseInt(row[6]) || 0,
-            afterStock: parseInt(row[7]) || 0,
-            note: row[8] ? String(row[8]).trim() : ''
-          });
-        }
-        logs = [...newLogs, ...logs];
-        saveData();
-        renderTables();
-        alert('Nhập và gộp file Excel nhật ký thành công! / 导入并追加成功！');
-      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
-    };
-    reader.readAsBinaryString(file);
-  }
-
   function parseExcelDate(val) {
     if (val === undefined || val === null || val === '') return '';
     if (typeof val === 'number' || (!isNaN(val) && !String(val).includes('-') && !String(val).includes('/'))) {
@@ -2216,6 +1913,342 @@
     return str;
   }
 
+  // --- 1. NHẬP EXCEL KHO PHỤ KIỆN ---
+  function importExcelInventory(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        let headerRowIdx = -1;
+        let colMap = { code: 1, supplierCode: 2, smtDip: 3, category: 4, name: 5, device: 6, stock: 7, minStock: 8, location: 9 };
+
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
+          let row = jsonRows[r];
+          if (!row) continue;
+          let foundHeader = false;
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            if (txt.includes('mãmuabán') || txt.includes('物料编码')) { colMap.code = c; foundHeader = true; }
+            if (txt.includes('măncc') || txt.includes('供应商料号')) { colMap.supplierCode = c; foundHeader = true; }
+            if (txt.includes('smt/dip')) { colMap.smtDip = c; foundHeader = true; }
+            if (txt.includes('phânloại') || txt.includes('类别')) { colMap.category = c; foundHeader = true; }
+            if (txt.includes('tênphụkiện') || txt.includes('备件品名')) { colMap.name = c; foundHeader = true; }
+            if (txt.includes('thiếtbị') || txt.includes('适用设备')) { colMap.device = c; foundHeader = true; }
+            if (txt.includes('sốlượng') || txt.includes('库存')) { if (!txt.includes('tối') && !txt.includes('安全')) { colMap.stock = c; foundHeader = true; } }
+            if (txt.includes('tổntốithiểu') || txt.includes('安全库存')) { colMap.minStock = c; foundHeader = true; }
+            if (txt.includes('vịtrí') || txt.includes('库位')) { colMap.location = c; foundHeader = true; }
+          }
+          if (foundHeader) { headerRowIdx = r; break; }
+        }
+
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
+        let newItems = [];
+
+        for (let i = startRow; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0) continue;
+          let nameVal = row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
+          let catVal = row[colMap.category] !== undefined ? String(row[colMap.category]).trim() : '';
+
+          if (!nameVal || nameVal === '-' || nameVal.toLowerCase().includes('tên phụ kiện')) {
+            if (catVal && catVal !== '-' && !catVal.toLowerCase().includes('phân loại')) {
+              nameVal = catVal; catVal = 'Khác';
+            }
+          }
+          if (!nameVal || nameVal === '-') continue; 
+
+          let rawStock = row[colMap.stock];
+          let parsedStock = (rawStock !== undefined && rawStock !== null && rawStock !== '') ? parseInt(rawStock) : 0;
+          if (isNaN(parsedStock)) parsedStock = 0;
+
+          let rawMinStock = row[colMap.minStock];
+          let parsedMinStock = (rawMinStock !== undefined && rawMinStock !== null && rawMinStock !== '') ? parseInt(rawMinStock) : 5;
+          if (isNaN(parsedMinStock)) parsedMinStock = 5;
+
+          newItems.push({
+            id: Date.now() + i,
+            code: row[colMap.code] !== undefined ? String(row[colMap.code]).trim() : '',
+            supplierCode: row[colMap.supplierCode] !== undefined ? String(row[colMap.supplierCode]).trim() : '',
+            smtDip: row[colMap.smtDip] !== undefined ? String(row[colMap.smtDip]).trim() : 'SMT',
+            category: catVal, name: nameVal,
+            device: row[colMap.device] !== undefined ? String(row[colMap.device]).trim() : '',
+            stock: parsedStock, minStock: parsedMinStock,
+            location: row[colMap.location] !== undefined ? String(row[colMap.location]).trim() : ''
+          });
+        }
+
+        if (newItems.length === 0) { alert('Không tìm thấy dữ liệu hợp lệ trong file Excel!'); return; }
+        
+        let isOverwrite = confirm(`Tìm thấy ${newItems.length} mục kho.\n\nBấm [OK] để ĐỔI MỚI (Xóa cũ thay mới).\nBấm [Cancel] để GỘP THÊM vào kho hiện tại.`);
+        if (isOverwrite) inventory = newItems;
+        else inventory = [...newItems, ...inventory];
+
+        saveData(); renderTables();
+        alert(`Nhập thành công ${newItems.length} mục vào kho! / 成功导入 ${newItems.length} 条数据！`);
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  // --- 2. NHẬP EXCEL ĐƠN MUA HÀNG THÁNG (TQ & VN) ---
+  function importExcelPurchase(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let headerRowIdx = -1;
+        let colMap = {};
+
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
+          let row = jsonRows[r];
+          if (!row) continue;
+          let foundHeader = false;
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            if (txt.includes('tháng') || txt.includes('月份')) { colMap.month = c; foundHeader = true; }
+            if (txt.includes('bộphận') || txt.includes('部门')) { colMap.dept = c; foundHeader = true; }
+            if (txt.includes('module') || txt.includes('模块')) { colMap.module = c; foundHeader = true; }
+            if (txt.includes('mãchíphí') || txt.includes('成本中心')) { colMap.costCenter = c; foundHeader = true; }
+            if (txt.includes('mãvậtliệu') || txt.includes('物料编码')) { colMap.code = c; foundHeader = true; }
+            if (txt.includes('tổmuahàng') || txt.includes('采购组')) { colMap.group = c; foundHeader = true; }
+            if (txt.includes('tênphụkiện') || txt.includes('备件品名') || txt.includes('品名')) { colMap.name = c; foundHeader = true; }
+            if (txt.includes('môtảtq') || txt.includes('物料描述')) { colMap.descCn = c; colMap.descVnCn = c; foundHeader = true; }
+            if (txt.includes('phânloại') || txt.includes('类别')) { colMap.category = c; foundHeader = true; }
+            if (txt.includes('đơnvị') || txt.includes('单位')) { colMap.unit = c; foundHeader = true; }
+            if (txt.includes('sốlượng') || txt.includes('数量')) { colMap.qty = c; foundHeader = true; }
+            if (txt.includes('đơngiá') || txt.includes('单价')) { colMap.price = c; foundHeader = true; }
+            if (txt.includes('ghichú') || txt.includes('备注')) { colMap.note = c; foundHeader = true; }
+            if (txt.includes('sửdụng') || txt.includes('场景')) { colMap.usage = c; foundHeader = true; }
+            if (txt.includes('quảnlý') || txt.includes('保管人')) { colMap.keeper = c; foundHeader = true; }
+            if (txt.includes('trạngthái') || txt.includes('签收')) { colMap.arrived = c; foundHeader = true; }
+          }
+          if (foundHeader) { headerRowIdx = r; break; }
+        }
+
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
+
+        if (type === 'china') {
+          let newChina = [];
+          for (let i = startRow; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || row.length === 0) continue;
+
+            let nameVal = colMap.name !== undefined && row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
+            if (!nameVal || nameVal === '-' || nameVal.toLowerCase().includes('tên phụ kiện')) {
+              if (colMap.descCn !== undefined && row[colMap.descCn]) nameVal = String(row[colMap.descCn]).trim();
+            }
+            if (!nameVal || nameVal === '-') continue;
+
+            let qty = parseInt(colMap.qty !== undefined ? row[colMap.qty] : row[11]) || 1;
+            let price = parseFloat(colMap.price !== undefined ? row[colMap.price] : row[12]) || 0;
+            let statusTxt = colMap.arrived !== undefined && row[colMap.arrived] ? String(row[colMap.arrived]) : '';
+            let isArrived = statusTxt.includes('Đã về') || statusTxt.includes('已到货');
+
+            newChina.push({
+              id: Date.now() + i,
+              month: colMap.month !== undefined && row[colMap.month] ? parseExcelDate(row[colMap.month]) : '',
+              dept: colMap.dept !== undefined && row[colMap.dept] ? String(row[colMap.dept]).trim() : '',
+              module: colMap.module !== undefined && row[colMap.module] ? String(row[colMap.module]).trim() : '',
+              costCenter: colMap.costCenter !== undefined && row[colMap.costCenter] ? String(row[colMap.costCenter]).trim() : '',
+              code: colMap.code !== undefined && row[colMap.code] ? String(row[colMap.code]).trim() : '',
+              group: colMap.group !== undefined && row[colMap.group] ? String(row[colMap.group]).trim() : '',
+              name: nameVal,
+              descCn: colMap.descCn !== undefined && row[colMap.descCn] ? String(row[colMap.descCn]).trim() : '',
+              unit: colMap.unit !== undefined && row[colMap.unit] ? String(row[colMap.unit]).trim() : '',
+              qty, price, totalPrice: qty * price,
+              note: colMap.note !== undefined && row[colMap.note] ? String(row[colMap.note]).trim() : '',
+              arrived: isArrived
+            });
+          }
+
+          if (newChina.length === 0) { alert('Không tìm thấy dữ liệu đơn mua TQ hợp lệ!'); return; }
+          let isOverwrite = confirm(`Tìm thấy ${newChina.length} đơn mua Trung Quốc.\n\nBấm [OK] để ĐỔI MỚI hoàn toàn.\nBấm [Cancel] để GỘP THÊM.`);
+          if (isOverwrite) chinaPurchases = newChina;
+          else chinaPurchases = [...newChina, ...chinaPurchases];
+
+        } else {
+          let newVn = [];
+          for (let i = startRow; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || row.length === 0) continue;
+
+            let descVal = colMap.descVnCn !== undefined && row[colMap.descVnCn] !== undefined ? String(row[colMap.descVnCn]).trim() : '';
+            if (!descVal || descVal === '-') continue;
+
+            let qty = parseInt(colMap.qty !== undefined ? row[colMap.qty] : row[7]) || 1;
+            let price = parseFloat(colMap.price !== undefined ? row[colMap.price] : row[9]) || 0;
+            let statusTxt = colMap.arrived !== undefined && row[colMap.arrived] ? String(row[colMap.arrived]) : '';
+            let isArrived = statusTxt.includes('Đã về') || statusTxt.includes('已到货');
+
+            newVn.push({
+              id: Date.now() + i,
+              month: colMap.month !== undefined && row[colMap.month] ? parseExcelDate(row[colMap.month]) : '',
+              category: colMap.category !== undefined && row[colMap.category] ? String(row[colMap.category]).trim() : '',
+              dept: colMap.dept !== undefined && row[colMap.dept] ? String(row[colMap.dept]).trim() : '',
+              code: colMap.code !== undefined && row[colMap.code] ? String(row[colMap.code]).trim() : '',
+              descVnCn: descVal,
+              qty, unit: colMap.unit !== undefined && row[colMap.unit] ? String(row[colMap.unit]).trim() : '',
+              price, totalPrice: qty * price,
+              usage: colMap.usage !== undefined && row[colMap.usage] ? String(row[colMap.usage]).trim() : '',
+              keeper: colMap.keeper !== undefined && row[colMap.keeper] ? String(row[colMap.keeper]).trim() : '',
+              arrived: isArrived
+            });
+          }
+
+          if (newVn.length === 0) { alert('Không tìm thấy dữ liệu đơn mua VN hợp lệ!'); return; }
+          let isOverwrite = confirm(`Tìm thấy ${newVn.length} đơn mua Việt Nam.\n\nBấm [OK] để ĐỔI MỚI hoàn toàn.\nBấm [Cancel] để GỘP THÊM.`);
+          if (isOverwrite) vietnamPurchases = newVn;
+          else vietnamPurchases = [...newVn, ...vietnamPurchases];
+        }
+
+        saveData(); renderTables();
+        alert('Nhập dữ liệu thành công! / 导入成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  // --- 3. NHẬP EXCEL PHỤ KIỆN NG ---
+  function importExcelNG(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let headerRowIdx = -1;
+        let colMap = {};
+
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
+          let row = jsonRows[r];
+          if (!row) continue;
+          let foundHeader = false;
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            if (txt.includes('thờigian') || txt.includes('时间')) { colMap.time = c; foundHeader = true; }
+            if (txt.includes('mãmuabán') || txt.includes('物料编码')) { colMap.code = c; foundHeader = true; }
+            if (txt.includes('tênphụkiện') || txt.includes('备件品名') || txt.includes('品名')) { colMap.name = c; foundHeader = true; }
+            if (txt.includes('sốlượng') || txt.includes('数量')) { colMap.qty = c; foundHeader = true; }
+            if (txt.includes('lýdo') || txt.includes('原因')) { colMap.reason = c; foundHeader = true; }
+            if (txt.includes('ngườibáo') || txt.includes('记录人')) { colMap.user = c; foundHeader = true; }
+          }
+          if (foundHeader) { headerRowIdx = r; break; }
+        }
+
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
+        let newNG = [];
+
+        for (let i = startRow; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0) continue;
+          let nameVal = colMap.name !== undefined && row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
+          if (!nameVal || nameVal === '-') continue;
+
+          newNG.push({
+            id: Date.now() + i,
+            time: colMap.time !== undefined && row[colMap.time] ? parseExcelDate(row[colMap.time]) : new Date().toISOString().slice(0, 19).replace('T', ' '),
+            code: colMap.code !== undefined && row[colMap.code] ? String(row[colMap.code]).trim() : '-',
+            name: nameVal,
+            qty: parseInt(colMap.qty !== undefined ? row[colMap.qty] : 1) || 1,
+            reason: colMap.reason !== undefined && row[colMap.reason] ? String(row[colMap.reason]).trim() : '',
+            user: colMap.user !== undefined && row[colMap.user] ? String(row[colMap.user]).trim() : ''
+          });
+        }
+
+        if (newNG.length === 0) { alert('Không tìm thấy dữ liệu phụ kiện NG hợp lệ!'); return; }
+        let isOverwrite = confirm(`Tìm thấy ${newNG.length} mục NG.\n\nBấm [OK] để ĐỔI MỚI hoàn toàn.\nBấm [Cancel] để GỘP THÊM.`);
+        if (isOverwrite) ngList = newNG;
+        else ngList = [...newNG, ...ngList];
+
+        saveData(); renderTables();
+        alert('Nhập danh sách Phụ kiện NG thành công! / 导入成功！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  // --- 4. NHẬP EXCEL NHẬT KÝ ---
+  function importExcelLogs(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let headerRowIdx = -1;
+        let colMap = {};
+
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
+          let row = jsonRows[r];
+          if (!row) continue;
+          let foundHeader = false;
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            if (txt.includes('thờigian') || txt.includes('时间')) { colMap.time = c; foundHeader = true; }
+            if (txt.includes('loaị') || txt.includes('操作类型')) { colMap.type = c; foundHeader = true; }
+            if (txt.includes('mãmuabán') || txt.includes('物料编码')) { colMap.code = c; foundHeader = true; }
+            if (txt.includes('tênphụkiện') || txt.includes('备件品名') || txt.includes('品名')) { colMap.name = c; foundHeader = true; }
+            if (txt.includes('thayđổi') || txt.includes('变动数量')) { colMap.change = c; foundHeader = true; }
+            if (txt.includes('tồnsaucùng') || txt.includes('结存数量')) { colMap.afterStock = c; foundHeader = true; }
+            if (txt.includes('ghichú') || txt.includes('备注')) { colMap.note = c; foundHeader = true; }
+          }
+          if (foundHeader) { headerRowIdx = r; break; }
+        }
+
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
+        let newLogs = [];
+
+        for (let i = startRow; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          if (!row || row.length === 0) continue;
+          let nameVal = colMap.name !== undefined && row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
+          if (!nameVal || nameVal === '-') continue;
+
+          newLogs.push({
+            id: Date.now() + i,
+            time: colMap.time !== undefined && row[colMap.time] ? parseExcelDate(row[colMap.time]) : new Date().toISOString().slice(0, 19).replace('T', ' '),
+            type: colMap.type !== undefined && row[colMap.type] ? String(row[colMap.type]).trim() : 'Xuất kho',
+            code: colMap.code !== undefined && row[colMap.code] ? String(row[colMap.code]).trim() : '-',
+            name: nameVal,
+            change: parseInt(colMap.change !== undefined ? row[colMap.change] : 0) || 0,
+            afterStock: parseInt(colMap.afterStock !== undefined ? row[colMap.afterStock] : 0) || 0,
+            note: colMap.note !== undefined && row[colMap.note] ? String(row[colMap.note]).trim() : ''
+          });
+        }
+
+        if (newLogs.length === 0) { alert('Không tìm thấy dữ liệu nhật ký hợp lệ!'); return; }
+        let isOverwrite = confirm(`Tìm thấy ${newLogs.length} bản ghi nhật ký.\n\nBấm [OK] để ĐỔI MỚI hoàn toàn.\nBấm [Cancel] để GỘP THÊM.`);
+        if (isOverwrite) logs = newLogs;
+        else logs = [...newLogs, ...logs];
+
+        saveData(); renderTables();
+        alert('Nhập Nhật ký xuất nhập thành công! / 成功导入！');
+      } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  // --- 5. NHẬP EXCEL LĨNH ĐỒ VĂN THƯ (ĐÃ FIX CHÍNH XÁC CỐ ĐỊNH CỘT GIVER CỘT G - INDEX 7) ---
   function importExcelAdminReceive(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2226,72 +2259,75 @@
         const workbook = XLSX.read(data, { type: 'binary' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        if (jsonRows.length === 0) return;
 
-        let headerRowIdx = 0;
-        let colMap = { time: -1, itemName: -1, qty: -1, unit: -1, dept: -1, receiver: -1, giver: -1, note: -1 };
+        let headerRowIdx = -1;
+        // Cố định mapping chuẩn xác theo đúng file Excel mẫu của bạn:
+        // Cột 0: (Checkbox/STT), Cột 1: STT, Cột 2: Thời gian (B), Cột 3: Tên vật tư (C), Cột 4: Số lượng (D), Cột 5: Đơn vị (E), Cột 6: Bộ phận (F), Cột 7: Người nhận (G), Cột 8: Người giao (H), Cột 9: Ghi chú (I)
+        let colMap = { time: 2, itemName: 3, qty: 4, unit: 5, dept: 6, receiver: 7, giver: 8, note: 9 };
 
-        for (let r = 0; r < Math.min(jsonRows.length, 5); r++) {
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
           let row = jsonRows[r];
+          if (!row) continue;
           for (let c = 0; c < row.length; c++) {
-            let txt = String(row[c] || '').toLowerCase();
-            if (txt.includes('thời gian') || txt.includes('时间')) colMap.time = c;
-            if (txt.includes('tên vật tư') || txt.includes('văn phòng phẩm') || txt.includes('物品名称')) colMap.itemName = c;
-            if (txt.includes('số lượng') || txt.includes('数量')) colMap.qty = c;
-            if (txt.includes('đơn vị') || txt.includes('单位')) colMap.unit = c;
-            if (txt.includes('bộ phận') || txt.includes('领用部门')) colMap.dept = c;
-            if (txt.includes('người nhận') || txt.includes('领用人')) colMap.receiver = c;
-            if (txt.includes('người giao') || txt.includes('văn thư') || txt.includes('发货人')) colMap.giver = c;
-            if (txt.includes('ghi chú') || txt.includes('备注')) colMap.note = c;
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            if (txt.includes('thờigian') || txt.includes('时间') || txt.includes('ngày')) colMap.time = c;
+            if (txt.includes('tênvật') || txt.includes('vật') || txt.includes('phẩm') || txt.includes('物品名称') || txt.includes('vănphòngphẩm')) colMap.itemName = c;
+            if (txt.includes('sốlượng') || txt.includes('数量') || txt.includes('lĩnh')) colMap.qty = c;
+            if (txt.includes('đơnvị') || txt.includes('单位')) colMap.unit = c;
+            if (txt.includes('bộphận') || txt.includes('部门') || txt.includes('nhận')) colMap.dept = c;
+            if (txt.includes('ngườinhận') || txt.includes('nhậnđồ') || txt.includes('领用人')) colMap.receiver = c;
+            if (txt.includes('ngườigiao') || txt.includes('giao') || txt.includes('vănthư') || txt.includes('发货人') || txt.includes('文书')) {
+              colMap.giver = c;
+            }
+            if (txt.includes('ghichú') || txt.includes('备注')) colMap.note = c;
           }
-          if (colMap.itemName !== -1 || colMap.qty !== -1) {
+          if (row.some(cell => String(cell).includes('Giao') || String(cell).includes('发货人'))) {
             headerRowIdx = r;
             break;
           }
         }
 
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 2;
         let newRec = [];
-        const fallbackMode = (colMap.itemName === -1);
 
-        for (let i = headerRowIdx + 1; i < jsonRows.length; i++) {
+        for (let i = startRow; i < jsonRows.length; i++) {
           const row = jsonRows[i];
           if (!row || row.length === 0) continue;
-          let rawTimeVal, itemNameVal, qtyVal, unitVal, deptVal, receiverVal, giverVal, noteVal;
-
-          if (!fallbackMode) {
-            rawTimeVal = colMap.time !== -1 ? row[colMap.time] : '';
-            itemNameVal = colMap.itemName !== -1 ? String(row[colMap.itemName] || '').trim() : '';
-            qtyVal = colMap.qty !== -1 ? parseInt(row[colMap.qty]) || 1 : 1;
-            unitVal = colMap.unit !== -1 ? String(row[colMap.unit] || '').trim() : 'Cái';
-            deptVal = colMap.dept !== -1 ? String(row[colMap.dept] || '').trim() : '';
-            receiverVal = colMap.receiver !== -1 ? String(row[colMap.receiver] || '').trim() : '';
-            giverVal = colMap.giver !== -1 ? String(row[colMap.giver] || '').trim() : '';
-            noteVal = colMap.note !== -1 ? String(row[colMap.note] || '').trim() : '';
-          } else {
-            rawTimeVal = row[2];
-            itemNameVal = row[3] !== undefined ? String(row[3]).trim() : '';
-            qtyVal = parseInt(row[4]) || 1;
-            unitVal = row[5] ? String(row[5]).trim() : 'Cái';
-            deptVal = row[6] ? String(row[6]).trim() : '';
-            receiverVal = row[7] ? String(row[7]).trim() : '';
-            giverVal = row[8] ? String(row[8]).trim() : '';
-            noteVal = row[9] ? String(row[9]).trim() : '';
+          
+          let itemNameVal = row[colMap.itemName] !== undefined ? String(row[colMap.itemName]).trim() : '';
+          if (!itemNameVal || itemNameVal === '-' || itemNameVal.toLowerCase().includes('tên vật tư') || itemNameVal.toLowerCase().includes('物品名称')) {
+            continue;
           }
 
-          if (!itemNameVal && rawTimeVal === undefined) continue;
-          const timeVal = parseExcelDate(rawTimeVal) || new Date().toISOString().slice(0, 10);
+          let rawQty = row[colMap.qty] !== undefined ? row[colMap.qty] : 1;
+          let parsedQty = parseInt(rawQty);
+          if (isNaN(parsedQty)) parsedQty = 1;
+
+          let giverVal = '';
+          if (colMap.giver !== undefined && row[colMap.giver] !== undefined) {
+            giverVal = String(row[colMap.giver]).trim();
+          }
 
           newRec.push({
-            id: Date.now() + i, time: timeVal, itemName: itemNameVal || 'Chưa rõ tên',
-            qty: isNaN(qtyVal) ? 1 : qtyVal, unit: unitVal || 'Cái', dept: deptVal,
-            receiver: receiverVal, giver: giverVal, note: noteVal
+            id: Date.now() + i,
+            time: colMap.time !== undefined && row[colMap.time] ? parseExcelDate(row[colMap.time]) : new Date().toISOString().slice(0, 10),
+            itemName: itemNameVal,
+            qty: parsedQty,
+            unit: colMap.unit !== undefined && row[colMap.unit] ? String(row[colMap.unit]).trim() : 'Cái',
+            dept: colMap.dept !== undefined && row[colMap.dept] ? String(row[colMap.dept]).trim() : '',
+            receiver: colMap.receiver !== undefined && row[colMap.receiver] ? String(row[colMap.receiver]).trim() : '',
+            giver: giverVal,
+            note: colMap.note !== undefined && row[colMap.note] ? String(row[colMap.note]).trim() : ''
           });
         }
 
-        adminReceives = [...newRec, ...adminReceives];
-        saveData();
-        renderTables();
-        alert('Nhập và gộp file Excel lịch sử văn thư thành công! / 导入并追加成功！');
+        if (newRec.length === 0) { alert('Không tìm thấy dữ liệu lĩnh đồ văn thư hợp lệ!'); return; }
+        let isOverwrite = confirm(`Tìm thấy ${newRec.length} bản ghi văn thư.\n\nBấm [OK] để ĐỔI MỚI hoàn toàn.\nBấm [Cancel] để GỘP THÊM.`);
+        if (isOverwrite) adminReceives = newRec;
+        else adminReceives = [...newRec, ...adminReceives];
+
+        saveData(); renderTables();
+        alert(`Nhập thành công ${newRec.length} bản ghi văn thư! / 成功导入 ${newRec.length} 条记录！`);
       } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
     };
     reader.readAsBinaryString(file);
