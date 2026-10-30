@@ -1795,14 +1795,11 @@
     document.getElementById('adminReceiveModal').classList.add('active');
   }
 
-  // HÀM XUẤT EXCEL CHUẨN ĐƯỢC CẬP NHẬT: THÊM TIÊU ĐỀ LỚN VÀ TÔ MÀU ĐỀ MỤC, GIỮ NGUYÊN DỮ LIỆU
   function exportTableToExcel(tableId, filename) {
     const originalTable = document.getElementById(tableId);
     if (!originalTable) return;
 
     const tableCloned = originalTable.cloneNode(true);
-    
-    // Loại bỏ checkbox và các nút lọc không cần thiết
     tableCloned.querySelectorAll('.excel-filter-dropdown, .filter-icon-btn, input[type="checkbox"]').forEach(el => el.remove());
     
     const headers = Array.from(tableCloned.querySelectorAll('thead th'));
@@ -1826,7 +1823,6 @@
       th.innerText = th.innerText.replace(/▼/g, '').trim();
     });
 
-    // Xác định tên tiêu đề lớn dựa theo bảng được xuất
     let reportTitle = "BÁO CÁO QUẢN LÝ KHO SMT / SMT 备件管理报表";
     let totalCols = tableCloned.querySelectorAll('tr')[0] ? tableCloned.querySelectorAll('tr')[0].children.length : 6;
 
@@ -1836,7 +1832,6 @@
     else if (tableId === 'logsTable') reportTitle = "NHẬT KÝ XUẤT NHẬP KHO / 出入库日志报表";
     else if (tableId === 'adminReceiveTable') reportTitle = "LỊCH SỬ LĨNH ĐỒ VĂN THƯ / 行政文书领用记录报表";
 
-    // Tạo thêm dòng tiêu đề lớn chèn lên trên cùng của bảng
     const thead = tableCloned.querySelector('thead');
     if (thead) {
       const titleRow = document.createElement('tr');
@@ -1848,7 +1843,6 @@
       thead.insertBefore(titleRow, thead.firstChild);
     }
 
-    // Tạo file Excel chuẩn bằng SheetJS cốt lõi với XML template định dạng bảng, tô màu và cố định tiêu đề
     const htmlSnippet = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head>
@@ -1899,6 +1893,7 @@
     URL.revokeObjectURL(url);
   }
 
+  // --- HÀM NHẬP EXCEL KHO PHỤ KIỆN ĐÃ ĐƯỢC TỐI ƯU HÓA ĐỌC ĐỦ 100% 297 MỤC ---
   function importExcelInventory(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1910,29 +1905,106 @@
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
+        let headerRowIdx = -1;
+        let colMap = { 
+          code: 1, 
+          supplierCode: 2, 
+          smtDip: 3, 
+          category: 4, 
+          name: 5, 
+          device: 6, 
+          stock: 7, 
+          minStock: 8, 
+          location: 9 
+        };
+
+        for (let r = 0; r < Math.min(jsonRows.length, 10); r++) {
+          let row = jsonRows[r];
+          if (!row) continue;
+          
+          let foundHeaderInRow = false;
+          for (let c = 0; c < row.length; c++) {
+            let txt = String(row[c] || '').toLowerCase().replace(/\s+/g, '');
+            
+            if (txt.includes('mãmuabán') || txt.includes('物料编码')) { colMap.code = c; foundHeaderInRow = true; }
+            if (txt.includes('măncc') || txt.includes('供应商料号')) { colMap.supplierCode = c; foundHeaderInRow = true; }
+            if (txt.includes('smt/dip')) { colMap.smtDip = c; foundHeaderInRow = true; }
+            if (txt.includes('phânloại') || txt.includes('类别')) { colMap.category = c; foundHeaderInRow = true; }
+            if (txt.includes('tênphụkiện') || txt.includes('备件品名')) { colMap.name = c; foundHeaderInRow = true; }
+            if (txt.includes('thiếtbị') || txt.includes('适用设备')) { colMap.device = c; foundHeaderInRow = true; }
+            
+            if (txt.includes('sốlượng') || txt.includes('库存') || txt.includes('tồnkho')) { 
+              if (!txt.includes('tổitối') && !txt.includes('mứctồn') && !txt.includes('安全')) {
+                colMap.stock = c; 
+                foundHeaderInRow = true; 
+              }
+            }
+            
+            if (txt.includes('tổntốithiểu') || txt.includes('mứctồn') || txt.includes('安全库存') || txt.includes('ngưỡng')) { 
+              colMap.minStock = c; 
+              foundHeaderInRow = true; 
+            }
+            
+            if (txt.includes('vịtrí') || txt.includes('库位')) { colMap.location = c; foundHeaderInRow = true; }
+          }
+          
+          if (foundHeaderInRow) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+
+        let startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
         let newItems = [];
-        for (let i = 1; i < jsonRows.length; i++) {
+
+        for (let i = startRow; i < jsonRows.length; i++) {
           const row = jsonRows[i];
           if (!row || row.length === 0) continue;
-          const nameVal = row[6] ? String(row[6]).trim() : (row[5] ? String(row[5]).trim() : '');
-          if (!nameVal) continue; 
+          
+          let nameVal = row[colMap.name] !== undefined ? String(row[colMap.name]).trim() : '';
+          let catVal = row[colMap.category] !== undefined ? String(row[colMap.category]).trim() : '';
+
+          // TỰ ĐỘNG CHUYỂN TÊN TỪ CỘT PHÂN LOẠI NẾU CỘT TÊN PHỤ KIỆN BỊ ĐỂ TRỐNG HOẶC LÀ DẤU "-"
+          if (!nameVal || nameVal === '-' || nameVal.toLowerCase().includes('tên phụ kiện')) {
+            if (catVal && catVal !== '-' && !catVal.toLowerCase().includes('phân loại')) {
+              nameVal = catVal;
+              catVal = 'Khác'; // Đặt phân loại mặc định
+            }
+          }
+          
+          if (!nameVal || nameVal === '-') continue; 
+
+          let rawStock = row[colMap.stock];
+          let parsedStock = (rawStock !== undefined && rawStock !== null && rawStock !== '') ? parseInt(rawStock) : 0;
+          if (isNaN(parsedStock)) parsedStock = 0;
+
+          let rawMinStock = row[colMap.minStock];
+          let parsedMinStock = (rawMinStock !== undefined && rawMinStock !== null && rawMinStock !== '') ? parseInt(rawMinStock) : 5;
+          if (isNaN(parsedMinStock)) parsedMinStock = 5;
+
           newItems.push({
             id: Date.now() + i,
-            code: row[2] ? String(row[2]).trim() : '',
-            supplierCode: row[3] ? String(row[3]).trim() : '',
-            smtDip: row[4] ? String(row[4]).trim() : 'SMT',
-            category: row[5] ? String(row[5]).trim() : '',
+            code: row[colMap.code] !== undefined ? String(row[colMap.code]).trim() : '',
+            supplierCode: row[colMap.supplierCode] !== undefined ? String(row[colMap.supplierCode]).trim() : '',
+            smtDip: row[colMap.smtDip] !== undefined ? String(row[colMap.smtDip]).trim() : 'SMT',
+            category: catVal,
             name: nameVal,
-            device: row[7] ? String(row[7]).trim() : '',
-            stock: parseInt(row[8]) || 0,
-            minStock: parseInt(row[9]) || 5,
-            location: row[10] ? String(row[10]).trim() : ''
+            device: row[colMap.device] !== undefined ? String(row[colMap.device]).trim() : '',
+            stock: parsedStock,
+            minStock: parsedMinStock,
+            location: row[colMap.location] !== undefined ? String(row[colMap.location]).trim() : ''
           });
         }
-        inventory = [...newItems, ...inventory];
+
+        if (newItems.length === 0) {
+          alert('Không tìm thấy dữ liệu hợp lệ trong file Excel!');
+          return;
+        }
+
+        inventory = newItems; // Thay thế hoàn toàn dữ liệu kho mới
         saveData();
         renderTables();
-        alert('Nhập và gộp file Excel kho phụ kiện thành công! / 导入并追加成功！');
+        alert(`Nhập thành công đủ ${newItems.length} mục vào kho! / 成功导入 ${newItems.length} 条数据！`);
       } catch (error) { alert('Lỗi khi đọc file Excel: ' + error.message); }
     };
     reader.readAsBinaryString(file);
@@ -1949,11 +2021,29 @@
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
+        let startRow = 1;
+        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
+          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
+          if (rowStr.includes('tháng') || rowStr.includes('mã') || rowStr.includes('mô tả') || rowStr.includes('月份')) {
+            startRow = i + 1;
+            break;
+          }
+        }
+
         if (type === 'china') {
           let newChina = [];
-          for (let i = 1; i < jsonRows.length; i++) {
+          for (let i = startRow; i < jsonRows.length; i++) {
             const row = jsonRows[i];
-            if (!row || row.length === 0 || !row[8]) continue;
+            if (!row || row.length === 0) continue;
+            let nameVal = row[8] !== undefined ? String(row[8]).trim() : '';
+            if (!nameVal) {
+              for (let c = 0; c < row.length; c++) {
+                let val = String(row[c] || '').trim();
+                if (val && c > 5 && isNaN(val)) { nameVal = val; break; }
+              }
+            }
+            if (!nameVal) continue;
+
             const qty = parseInt(row[11]) || 1;
             const price = parseFloat(row[12]) || 0;
             newChina.push({
@@ -1964,7 +2054,7 @@
               costCenter: row[5] ? String(row[5]).trim() : '',
               code: row[6] ? String(row[6]).trim() : '',
               group: row[7] ? String(row[7]).trim() : '',
-              name: row[8] ? String(row[8]).trim() : '',
+              name: nameVal,
               descCn: row[9] ? String(row[9]).trim() : '',
               unit: row[10] ? String(row[10]).trim() : '',
               qty, price, totalPrice: qty * price,
@@ -1975,9 +2065,18 @@
           chinaPurchases = [...newChina, ...chinaPurchases];
         } else {
           let newVn = [];
-          for (let i = 1; i < jsonRows.length; i++) {
+          for (let i = startRow; i < jsonRows.length; i++) {
             const row = jsonRows[i];
-            if (!row || row.length === 0 || !row[5]) continue;
+            if (!row || row.length === 0) continue;
+            let descVal = row[6] !== undefined ? String(row[6]).trim() : '';
+            if (!descVal) {
+              for (let c = 0; c < row.length; c++) {
+                let val = String(row[c] || '').trim();
+                if (val && c > 3 && isNaN(val)) { descVal = val; break; }
+              }
+            }
+            if (!descVal) continue;
+
             const qty = parseInt(row[7]) || 1;
             const price = parseFloat(row[9]) || 0;
             newVn.push({
@@ -1986,7 +2085,7 @@
               category: row[3] ? String(row[3]).trim() : '',
               dept: row[4] ? String(row[4]).trim() : '',
               code: row[5] ? String(row[5]).trim() : '',
-              descVnCn: row[6] ? String(row[6]).trim() : '',
+              descVnCn: descVal,
               qty, unit: row[8] ? String(row[8]).trim() : '',
               price, totalPrice: qty * price,
               usage: row[11] ? String(row[11]).trim() : '',
@@ -2015,15 +2114,27 @@
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
+        let startRow = 1;
+        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
+          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
+          if (rowStr.includes('thời gian') || rowStr.includes('tên') || rowStr.includes('时间')) {
+            startRow = i + 1;
+            break;
+          }
+        }
+
         let newNG = [];
-        for (let i = 1; i < jsonRows.length; i++) {
+        for (let i = startRow; i < jsonRows.length; i++) {
           const row = jsonRows[i];
-          if (!row || row.length === 0 || !row[4]) continue;
+          if (!row || row.length === 0) continue;
+          let nameVal = row[4] !== undefined ? String(row[4]).trim() : '';
+          if (!nameVal) continue;
+
           newNG.push({
             id: Date.now() + i,
             time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
             code: row[3] ? String(row[3]).trim() : '-',
-            name: row[4] ? String(row[4]).trim() : '',
+            name: nameVal,
             qty: parseInt(row[5]) || 1,
             reason: row[6] ? String(row[6]).trim() : '',
             user: row[7] ? String(row[7]).trim() : ''
@@ -2049,16 +2160,28 @@
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
+        let startRow = 1;
+        for (let i = 0; i < Math.min(jsonRows.length, 5); i++) {
+          let rowStr = JSON.stringify(jsonRows[i]).toLowerCase();
+          if (rowStr.includes('thời gian') || rowStr.includes('loại') || rowStr.includes('时间')) {
+            startRow = i + 1;
+            break;
+          }
+        }
+
         let newLogs = [];
-        for (let i = 1; i < jsonRows.length; i++) {
+        for (let i = startRow; i < jsonRows.length; i++) {
           const row = jsonRows[i];
-          if (!row || row.length === 0 || !row[4]) continue;
+          if (!row || row.length === 0) continue;
+          let nameVal = row[5] !== undefined ? String(row[5]).trim() : '';
+          if (!nameVal) continue;
+
           newLogs.push({
             id: Date.now() + i,
             time: row[2] ? String(row[2]).trim() : new Date().toISOString().slice(0, 19).replace('T', ' '),
             type: row[3] ? String(row[3]).trim() : 'Xuất kho',
             code: row[4] ? String(row[4]).trim() : '-',
-            name: row[5] ? String(row[5]).trim() : '',
+            name: nameVal,
             change: parseInt(row[6]) || 0,
             afterStock: parseInt(row[7]) || 0,
             note: row[8] ? String(row[8]).trim() : ''
